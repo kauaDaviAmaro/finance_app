@@ -13,7 +13,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
-import type { TechnicalAnalysis } from '../services/api'
+import type { TechnicalAnalysis } from '../services/api/index'
 
 ChartJS.register(
   CategoryScale,

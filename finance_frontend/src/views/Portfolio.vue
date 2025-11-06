@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate } from '../services/api'
+import { api, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate } from '../services/api/index'
 import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Calendar, Search } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 

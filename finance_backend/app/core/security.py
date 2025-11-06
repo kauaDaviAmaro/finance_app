@@ -4,7 +4,7 @@ from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import User
+from app.db.models import User, UserRole
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -55,3 +55,15 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
         )
+
+
+def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Dependência que exige que o usuário atual seja um ADMIN.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Requer privilégios de administrador."
+        )
+    return current_user

@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type WatchlistResponse, type WatchlistItem } from '../services/api'
+import { api, ApiError, type WatchlistResponse, type WatchlistItem } from '../services/api/index'
 import { Eye, Plus, Trash2, Loader2, AlertCircle, Search, X } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 

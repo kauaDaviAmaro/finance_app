@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type TechnicalAnalysis, type Fundamentals } from '../services/api'
+import { api, ApiError, type TechnicalAnalysis, type Fundamentals } from '../services/api/index'
 import { TrendingUp, Search, BarChart, Activity, DollarSign, Info } from 'lucide-vue-next'
 import PriceChart from '../components/PriceChart.vue'
 import VolumeChart from '../components/VolumeChart.vue'

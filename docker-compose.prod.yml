@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: finance_db_prod
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_network_prod
+    restart: always
+    # Não expõe portas em produção (apenas acesso interno)
+
+  # Redis para Celery
+  redis:
+    image: redis:6-alpine
+    container_name: finance_redis_prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_network_prod
+    restart: always
+    # Não expõe portas em produção (apenas acesso interno)
+
+  # API Backend
+  api:
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
+    container_name: finance_api_prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "false"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - finance_network_prod
+    restart: always
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Celery Worker
+  worker:
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
+    container_name: finance_worker_prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
+    networks:
+      - finance_network_prod
+    restart: always
+    command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2} --prefetch-multiplier=1 -Q periodic_tasks
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Celery Beat
+  beat:
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
+    container_name: finance_beat_prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./finance_backend/celerybeat-schedule:/app/celerybeat-schedule
+    networks:
+      - finance_network_prod
+    restart: always
+    command: celery -A app.celery_worker beat -l info
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend
+  frontend:
+    build:
+      context: ./finance_frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: finance_frontend_prod
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - finance_network_prod
+    restart: always
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  finance_network_prod:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+

@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type AlertListResponse, type Alert, type AlertCreate } from '../services/api'
+import { api, ApiError, type AlertListResponse, type Alert, type AlertCreate } from '../services/api/index'
 import { Bell, Plus, Trash2, Loader2, AlertCircle, Search, X, Power, PowerOff, TrendingUp } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 

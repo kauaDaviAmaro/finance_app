@@ -1,3 +1,4 @@
+# Python
 __pycache__
 *.pyc
 *.pyo
@@ -8,18 +9,32 @@ __pycache__
 *.egg-info
 dist
 build
-.env
+.pytest_cache
+.coverage
+htmlcov
 .venv
-venv/
-ENV/
-env/
+venv
+env
+ENV
+
+# Git
 .git
 .gitignore
+
+# IDE
 .vscode
 .idea
-*.md
-.coverage
-.pytest_cache
-*.log
-htmlcov/
+*.swp
+*.swo
 
+# Tests
+tests
+*.test.py
+*.spec.py
+
+# Misc
+.env
+.env.*
+!.env.example
+*.log
+celerybeat-schedule

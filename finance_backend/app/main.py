@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.db.database import engine
-from app.db.models import Base
+from app.db.database import engine, SessionLocal
+from app.db.models import Base, User, WatchlistItem, PortfolioItem, Alert, TickerPrice
 import logging
+
+# SQLAdmin imports
+from sqladmin import Admin, ModelView
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +63,70 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- (Início) Registro dos Modelos no SQLAdmin ---
+
+class UserAdmin(ModelView, model=User):
+    column_list = [User.id, User.email, User.username, User.role, User.is_active, User.created_at]
+    column_searchable_list = [User.email, User.username]
+    column_sortable_list = [User.id, User.email, User.username, User.role, User.is_active, User.created_at]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    icon = "fa-solid fa-user"
+
+
+class PortfolioItemAdmin(ModelView, model=PortfolioItem):
+    column_list = [PortfolioItem.id, PortfolioItem.ticker, PortfolioItem.user_id, PortfolioItem.quantity, PortfolioItem.purchase_price]
+    column_searchable_list = [PortfolioItem.ticker]
+    column_sortable_list = [PortfolioItem.id, PortfolioItem.ticker, PortfolioItem.user_id, PortfolioItem.quantity]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    icon = "fa-solid fa-briefcase"
+
+
+class WatchlistAdmin(ModelView, model=WatchlistItem):
+    column_list = [WatchlistItem.id, WatchlistItem.ticker, WatchlistItem.user_id, WatchlistItem.created_at]
+    column_searchable_list = [WatchlistItem.ticker]
+    column_sortable_list = [WatchlistItem.id, WatchlistItem.ticker, WatchlistItem.user_id]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    icon = "fa-solid fa-eye"
+
+
+class AlertAdmin(ModelView, model=Alert):
+    column_list = [Alert.id, Alert.ticker, Alert.user_id, Alert.indicator_type, Alert.is_active, Alert.triggered_at]
+    column_searchable_list = [Alert.ticker, Alert.indicator_type]
+    column_sortable_list = [Alert.id, Alert.ticker, Alert.user_id, Alert.is_active]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    icon = "fa-solid fa-bell"
+
+
+class TickerPriceAdmin(ModelView, model=TickerPrice):
+    column_list = [TickerPrice.ticker, TickerPrice.last_price, TickerPrice.timestamp]
+    column_searchable_list = [TickerPrice.ticker]
+    column_sortable_list = [TickerPrice.ticker, TickerPrice.last_price, TickerPrice.timestamp]
+    can_create = False
+    can_edit = True
+    can_delete = True
+    icon = "fa-solid fa-dollar-sign"
+
+
+# Monta o Admin
+admin = Admin(app, engine)
+
+# Adiciona as visualizações dos modelos
+admin.add_view(UserAdmin)
+admin.add_view(PortfolioItemAdmin)
+admin.add_view(WatchlistAdmin)
+admin.add_view(AlertAdmin)
+admin.add_view(TickerPriceAdmin)
+
+# --- (Fim) Registro dos Modelos no SQLAdmin ---
 
 from app.routers import auth as auth_router
 from app.routers import stock as stock_router

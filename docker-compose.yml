@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # Banco de dados PostgreSQL
   db:
     image: postgres:15-alpine
     container_name: finance_db
@@ -15,21 +18,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - finance_network
 
+  # Redis para Celery
   redis:
     image: redis:6-alpine
     container_name: finance_redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_network
 
+  # API Backend
   api:
-    build: .
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
     container_name: finance_api
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -37,78 +53,103 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
-      DEBUG: ${DEBUG:-true}
+      DEBUG: ${DEBUG:-false}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
       - "${API_PORT:-8000}:8000"
-    volumes:
-      - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - finance_network
+    restart: unless-stopped
 
+  # Celery Worker
   worker:
-    build: .
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
     container_name: finance_worker
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-      # Limitar concorrência para evitar sobrecarga de requisições externas
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-1}
-    volumes:
-      - .:/app
-    # Concorrência limitada a 1 worker para evitar rate limiting de APIs externas
-    # worker_prefetch_multiplier=1 garante que apenas 1 tarefa é processada por vez
+    networks:
+      - finance_network
+    restart: unless-stopped
     command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-1} --prefetch-multiplier=1 -Q periodic_tasks
 
+  # Celery Beat
   beat:
-    build: .
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
     container_name: finance_beat
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-    volumes:
-      - .:/app
-    command: celery -A app.celery_worker beat -l info
-
-  test:
-    build: .
-    container_name: finance_test
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-finances_db}_test
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      SECRET_KEY: ${SECRET_KEY:-test-secret-key}
-      DEBUG: true
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-    volumes:
-      - .:/app
-    command: pytest
-    profiles:
-      - test
+    networks:
+      - finance_network
+    restart: unless-stopped
+    command: celery -A app.celery_worker beat -l info
+
+  # Flower - Monitoramento de Filas Celery/Redis
+  flower:
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
+    container_name: finance_flower
+    depends_on:
+      - redis
+      - worker
+      - beat
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "127.0.0.1:5555:5555"
+    networks:
+      - finance_network
+    restart: unless-stopped
+    command: celery -A app.celery_worker flower
+
+  # Frontend
+  frontend:
+    build:
+      context: ./finance_frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: finance_frontend
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - finance_network
+    restart: unless-stopped
+
+networks:
+  finance_network:
+    driver: bridge
 
 volumes:
   postgres_data:

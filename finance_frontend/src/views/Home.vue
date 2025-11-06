@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, type PortfolioSummary, type WatchlistResponse, type AlertListResponse } from '../services/api'
+import { api, type PortfolioSummary, type WatchlistResponse, type AlertListResponse } from '../services/api/index'
 import { DollarSign, TrendingDown, TrendingUp, AlertCircle, Loader2, BarChart, Eye, Bell } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 import { Doughnut, Bar } from 'vue-chartjs'

@@ -80,18 +80,25 @@ finance_app/
 │   │   └── schemas/         # Pydantic schemas
 │   ├── tests/               # Test suite
 │   ├── Dockerfile
-│   ├── docker-compose.yml
 │   └── requirements.txt
 │
-└── finance_frontend/         # Frontend application
-    ├── src/
-    │   ├── components/      # Vue components
-    │   ├── views/           # Page views
-    │   ├── services/        # API service layer
-    │   ├── stores/          # Pinia stores
-    │   └── router/          # Route configuration
-    ├── package.json
-    └── vite.config.ts
+├── finance_frontend/         # Frontend application
+│   ├── src/
+│   │   ├── components/      # Vue components
+│   │   ├── views/           # Page views
+│   │   ├── services/        # API service layer
+│   │   ├── stores/          # Pinia stores
+│   │   └── router/          # Route configuration
+│   ├── Dockerfile           # Production Dockerfile
+│   ├── Dockerfile.dev       # Development Dockerfile
+│   ├── nginx.conf           # Nginx configuration
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── docker-compose.yml        # General Docker Compose
+├── docker-compose.dev.yml    # Development Docker Compose
+├── docker-compose.prod.yml   # Production Docker Compose
+└── .env.example              # Environment variables example
 ```
 
 ## Prerequisites
@@ -104,62 +111,123 @@ finance_app/
 
 ### Using Docker (Recommended)
 
+This project includes three Docker Compose configurations:
+
+- **`docker-compose.yml`** - General configuration
+- **`docker-compose.dev.yml`** - Development with hot reload
+- **`docker-compose.prod.yml`** - Production optimized
+
+#### Development Setup
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd finance_app
 ```
 
-2. Navigate to the backend directory:
-```bash
-cd finance_backend
-```
-
-3. Create a `.env` file (optional, defaults are provided):
+2. Create a `.env` file in the root directory (see `.env.example` for reference):
 ```bash
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=finances_db
 DB_PORT=5432
-SECRET_KEY=your-secret-key-change-in-production
+API_PORT=8000
+FRONTEND_PORT=5173
+SECRET_KEY=dev-secret-key
 DEBUG=true
+VITE_API_BASE_URL=http://localhost:8000
 CELERY_BROKER_URL=redis://redis:6379/0
 CELERY_RESULT_BACKEND=redis://redis:6379/0
+CELERY_WORKER_CONCURRENCY=1
 ```
 
-4. Start the services:
+3. Start all services in development mode:
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
 This will start:
 - PostgreSQL database on port 5432
 - Redis on port 6379
-- FastAPI backend on port 8000
-- Celery worker for background tasks
-- Celery beat for scheduled tasks
+- FastAPI backend on port 8000 (with hot reload)
+- Celery worker for background tasks (with hot reload)
+- Celery beat for scheduled tasks (with hot reload)
+- Vue.js frontend on port 5173 (with hot reload)
 
-5. Navigate to the frontend directory:
+The frontend will be available at `http://localhost:5173` and the API at `http://localhost:8000`
+
+4. Stop the services:
 ```bash
-cd ../finance_frontend
+docker-compose -f docker-compose.dev.yml down
 ```
 
-6. Install dependencies:
+#### Production Setup
+
+1. Create a `.env` file with production values:
 ```bash
-npm install
+DB_USER=your_production_db_user
+DB_PASSWORD=your_strong_password
+DB_NAME=finances_db
+API_PORT=8000
+FRONTEND_PORT=80
+SECRET_KEY=your-very-strong-secret-key-change-this
+DEBUG=false
+VITE_API_BASE_URL=http://your-domain.com:8000
+REDIS_PASSWORD=your_redis_password
+CELERY_WORKER_CONCURRENCY=2
+SMTP_HOST=your-smtp-host
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+EMAILS_FROM_EMAIL=noreply@yourdomain.com
+EMAILS_FROM_NAME=Finance App Alerts
 ```
 
-7. Create a `.env` file for frontend:
+2. Start all services in production mode:
 ```bash
-VITE_API_BASE_URL=http://localhost:8000
+docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-8. Start the frontend development server:
+3. View logs:
 ```bash
-npm run dev
+docker-compose -f docker-compose.prod.yml logs -f
 ```
 
-The frontend will be available at `http://localhost:5173`
+4. Stop the services:
+```bash
+docker-compose -f docker-compose.prod.yml down
+```
+
+#### General Docker Compose
+
+You can also use the general `docker-compose.yml`:
+```bash
+docker-compose up --build
+```
+
+#### Useful Docker Commands
+
+**Rebuild containers:**
+```bash
+docker-compose -f docker-compose.dev.yml build --no-cache
+```
+
+**Execute commands inside containers:**
+```bash
+# Backend
+docker-compose -f docker-compose.dev.yml exec api bash
+
+# Frontend
+docker-compose -f docker-compose.dev.yml exec frontend sh
+
+# Database
+docker-compose -f docker-compose.dev.yml exec db psql -U postgres -d finances_db
+```
+
+**Clean volumes (warning: deletes data!):**
+```bash
+docker-compose -f docker-compose.dev.yml down -v
+```
 
 ### Local Development (Without Docker)
 
@@ -243,13 +311,7 @@ Once the backend is running, API documentation is available at:
 
 #### Backend Tests
 
-Using Docker:
-```bash
-cd finance_backend
-docker-compose --profile test up test
-```
-
-Or locally:
+Locally:
 ```bash
 cd finance_backend
 pytest
@@ -328,14 +390,29 @@ The backend is ready for production when running in Docker. For standalone deplo
 - `DB_NAME` - Database name (default: finances_db)
 - `DB_USER` - Database user (default: postgres)
 - `DB_PASSWORD` - Database password (default: postgres)
-- `SECRET_KEY` - Secret key for JWT tokens
+- `SECRET_KEY` - Secret key for JWT tokens (required in production)
 - `DEBUG` - Debug mode (default: true)
 - `CELERY_BROKER_URL` - Redis broker URL
 - `CELERY_RESULT_BACKEND` - Redis result backend URL
+- `CELERY_WORKER_CONCURRENCY` - Number of Celery worker processes (default: 1)
+- `SMTP_HOST` - SMTP server host (for email alerts)
+- `SMTP_PORT` - SMTP server port (default: 587)
+- `SMTP_USER` - SMTP username
+- `SMTP_PASSWORD` - SMTP password
+- `EMAILS_FROM_EMAIL` - Email sender address
+- `EMAILS_FROM_NAME` - Email sender name
 
 ### Frontend
 
 - `VITE_API_BASE_URL` - Backend API base URL (default: http://localhost:8000)
+
+### Docker Compose
+
+- `API_PORT` - Backend API port (default: 8000)
+- `FRONTEND_PORT` - Frontend port (default: 3000 for production, 5173 for dev)
+- `REDIS_PASSWORD` - Redis password (recommended for production)
+
+See `.env.example` for a complete reference.
 
 ## License
 
