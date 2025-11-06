@@ -41,5 +41,5 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserOut)
-def get_current_user(token: str, db: Session = Depends(get_db)):
-    return get_current_user(token, db)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user

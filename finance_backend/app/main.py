@@ -62,9 +62,17 @@ app.add_middleware(
 )
 
 from app.routers import auth as auth_router
+from app.routers import stock as stock_router
+from app.routers import watchlist as watchlist_router
+from app.routers import portfolio as portfolio_router
+from app.routers import alert as alert_router
 
 # Inclui as rotas
 app.include_router(auth_router.router)
+app.include_router(stock_router.router)
+app.include_router(watchlist_router.router)
+app.include_router(portfolio_router.router)
+app.include_router(alert_router.router)
 
 @app.get("/health")
 def health_check():
