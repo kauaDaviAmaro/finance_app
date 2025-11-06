@@ -8,8 +8,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from typing import Optional, Dict, List
 from decimal import Decimal
+import time
+import logging
 
 from app.core.market.ticker_utils import format_ticker
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_price(ticker: str, db: Session = None) -> Optional[float]:
@@ -80,30 +84,93 @@ def get_current_price(ticker: str, db: Session = None) -> Optional[float]:
         return None
 
 
-def update_ticker_prices(tickers: List[str], db: Session) -> Dict[str, Optional[float]]:
+def _fetch_ticker_price_with_backoff(ticker: str, max_retries: int = 3, initial_delay: float = 1.0) -> Optional[float]:
     """
-    Atualiza os preços de múltiplos tickers no cache.
-    Esta função será chamada pelo worker assíncrono (Cron/Celery) a cada 5-15 minutos.
-    Retorna um dicionário com ticker -> preço atualizado.
+    Busca o preço de um ticker com retry e backoff exponencial.
+    
+    Args:
+        ticker: Símbolo do ticker
+        max_retries: Número máximo de tentativas
+        initial_delay: Delay inicial em segundos (será multiplicado exponencialmente)
+    
+    Returns:
+        Preço do ticker ou None se falhar após todas as tentativas
     """
-    from app.db.models import TickerPrice
+    formatted_ticker = format_ticker(ticker)
+    delay = initial_delay
     
-    results = {}
-    
-    for ticker in tickers:
-        formatted_ticker = format_ticker(ticker)
-        
+    for attempt in range(max_retries):
         try:
             stock = yf.Ticker(formatted_ticker)
             data = stock.history(period="1d")
             
             if data.empty:
-                results[ticker] = None
-                continue
+                logger.warning(f"Dados vazios para {formatted_ticker} (tentativa {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    time.sleep(delay)
+                    delay *= 2  # Backoff exponencial
+                    continue
+                return None
             
             current_price = float(data['Close'].iloc[-1])
-            results[ticker] = current_price
+            return current_price
             
+        except Exception as e:
+            logger.warning(f"Erro ao buscar preço para {formatted_ticker} (tentativa {attempt + 1}/{max_retries}): {e}")
+            
+            if attempt < max_retries - 1:
+                # Backoff exponencial: espera delay antes de tentar novamente
+                logger.info(f"Aguardando {delay:.2f}s antes de tentar novamente...")
+                time.sleep(delay)
+                delay *= 2  # Aumenta o delay exponencialmente
+            else:
+                logger.error(f"Falha ao buscar preço para {formatted_ticker} após {max_retries} tentativas")
+                return None
+    
+    return None
+
+
+def update_ticker_prices(tickers: List[str], db: Session, delay_between_requests: float = 0.5) -> Dict[str, Optional[float]]:
+    """
+    Atualiza os preços de múltiplos tickers no cache.
+    Esta função será chamada pelo worker assíncrono (Cron/Celery) a cada 5-15 minutos.
+    
+    Implementa:
+    - Delay entre requisições para evitar rate limiting
+    - Backoff exponencial em caso de falhas
+    - Retry automático para requisições falhadas
+    
+    Args:
+        tickers: Lista de tickers para atualizar
+        db: Sessão do banco de dados
+        delay_between_requests: Delay em segundos entre cada requisição (padrão: 0.5s)
+    
+    Returns:
+        Dicionário com ticker -> preço atualizado
+    """
+    from app.db.models import TickerPrice
+    
+    results = {}
+    total_tickers = len(tickers)
+    
+    logger.info(f"Iniciando atualização de preços para {total_tickers} tickers (delay entre requisições: {delay_between_requests}s)")
+    
+    for index, ticker in enumerate(tickers, 1):
+        formatted_ticker = format_ticker(ticker)
+        
+        # Delay entre requisições para evitar rate limiting (exceto no primeiro ticker)
+        if index > 1:
+            time.sleep(delay_between_requests)
+        
+        # Buscar preço com backoff exponencial
+        current_price = _fetch_ticker_price_with_backoff(ticker)
+        results[ticker] = current_price
+        
+        if current_price is None:
+            logger.warning(f"Não foi possível obter preço para {ticker}")
+            continue
+        
+        try:
             # Atualizar ou criar no cache
             ticker_price = db.query(TickerPrice).filter(
                 TickerPrice.ticker == formatted_ticker
@@ -119,14 +186,18 @@ def update_ticker_prices(tickers: List[str], db: Session) -> Dict[str, Optional[
                 )
                 db.add(ticker_price)
             
+            logger.debug(f"Preço atualizado para {ticker}: {current_price} ({index}/{total_tickers})")
+            
         except Exception as e:
-            print(f"Erro ao atualizar preço para {ticker}: {e}")
-            results[ticker] = None
+            logger.error(f"Erro ao atualizar cache de preço para {ticker}: {e}")
+            db.rollback()
     
+    # Commit todas as atualizações de uma vez
     try:
         db.commit()
+        logger.info(f"Atualização concluída: {len([r for r in results.values() if r is not None])}/{total_tickers} tickers atualizados com sucesso")
     except Exception as e:
-        print(f"Erro ao commitar atualizações de preços: {e}")
+        logger.error(f"Erro ao commitar atualizações de preços: {e}")
         db.rollback()
     
     return results

@@ -60,9 +60,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      # Limitar concorrência para evitar sobrecarga de requisições externas
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-1}
     volumes:
       - .:/app
-    command: celery -A app.celery_worker worker -l info --concurrency=1 -Q periodic_tasks
+    # Concorrência limitada a 1 worker para evitar rate limiting de APIs externas
+    # worker_prefetch_multiplier=1 garante que apenas 1 tarefa é processada por vez
+    command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-1} --prefetch-multiplier=1 -Q periodic_tasks
 
   beat:
     build: .
