@@ -84,3 +84,14 @@ class Alert(Base):
     
     def __repr__(self):
         return f"<Alert(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', indicator='{self.indicator_type}')>"
+
+
+class TickerPrice(Base):
+    __tablename__ = "ticker_prices"
+    
+    ticker = Column(String(20), primary_key=True, index=True)
+    last_price = Column(Numeric(10, 4), nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<TickerPrice(ticker='{self.ticker}', price={self.last_price}, timestamp={self.timestamp})>"

@@ -55,8 +55,8 @@ def add_portfolio_item(
     db.commit()
     db.refresh(portfolio_item)
     
-    # Buscar preço atual e calcular P&L
-    current_price = get_current_price(portfolio_item.ticker)
+    # Buscar preço atual e calcular P&L (usando cache do DB)
+    current_price = get_current_price(portfolio_item.ticker, db)
     current_price_decimal = Decimal(str(current_price)) if current_price else None
     realized_pnl, unrealized_pnl = calculate_portfolio_pnl(portfolio_item, current_price_decimal)
     
@@ -98,8 +98,8 @@ def get_portfolio(
         purchase_value = Decimal(str(item.purchase_price)) * item.quantity
         total_invested += purchase_value
         
-        # Buscar preço atual
-        current_price = get_current_price(item.ticker)
+        # Buscar preço atual (usando cache do DB)
+        current_price = get_current_price(item.ticker, db)
         current_price_decimal = Decimal(str(current_price)) if current_price else None
         
         # Calcular P&L
@@ -153,8 +153,8 @@ def get_portfolio_item(
             detail="Posição não encontrada"
         )
     
-    # Buscar preço atual e calcular P&L
-    current_price = get_current_price(item.ticker)
+    # Buscar preço atual e calcular P&L (usando cache do DB)
+    current_price = get_current_price(item.ticker, db)
     current_price_decimal = Decimal(str(current_price)) if current_price else None
     realized_pnl, unrealized_pnl = calculate_portfolio_pnl(item, current_price_decimal)
     
