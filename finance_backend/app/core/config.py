@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     celery_broker_url: str
     celery_result_backend: str
     
+    # Email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_EMAIL: str = "no-reply@seuapp.com"
+    EMAILS_FROM_NAME: str = "Finances API Alertas"
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8"
