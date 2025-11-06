@@ -18,8 +18,8 @@ env/
 .vscode
 .idea
 *.md
-tests/
 .coverage
 .pytest_cache
 *.log
+htmlcov/
 

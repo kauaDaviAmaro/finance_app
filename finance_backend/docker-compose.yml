@@ -88,6 +88,28 @@ services:
       - .:/app
     command: celery -A app.celery_worker beat -l info
 
+  test:
+    build: .
+    container_name: finance_test
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-finances_db}_test
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY: ${SECRET_KEY:-test-secret-key}
+      DEBUG: true
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - .:/app
+    command: pytest
+    profiles:
+      - test
+
 volumes:
   postgres_data:
 
