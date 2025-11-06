@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     app_name: str = "Finances API"
     debug: bool = True
     
+    # Celery
+    celery_broker_url: str
+    celery_result_backend: str
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8"

@@ -11,3 +11,4 @@ python-jose[cryptography]
 yfinance
 pandas
 pandas-ta
+celery[redis]
