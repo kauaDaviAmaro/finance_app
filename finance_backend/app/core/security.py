@@ -67,3 +67,15 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
             detail="Acesso negado. Requer privilégios de administrador."
         )
     return current_user
+
+
+def get_pro_user(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Dependência que exige que o usuário tenha um plano PRO ou ADMIN.
+    """
+    if current_user.role not in [UserRole.PRO, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Recurso exclusivo para assinantes PRO."
+        )
+    return current_user

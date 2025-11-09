@@ -21,6 +21,9 @@ export interface User {
   email: string
   username: string
   full_name?: string
+  role: 'ADMIN' | 'PRO' | 'USER'
+  created_at?: string
+  two_factor_enabled?: boolean
 }
 
 // Stock Types
@@ -149,4 +152,47 @@ export interface AlertCreate {
   condition: string
   threshold_value?: number
 }
+
+// Subscription Types
+export interface SubscriptionStatus {
+  role: 'ADMIN' | 'PRO' | 'USER'
+  subscription_status: string | null
+  is_pro: boolean
+}
+
+export interface CheckoutSessionResponse {
+  url: string
+  session_id: string
+}
+
+export interface PortalSessionResponse {
+  url: string
+}
+
+
+// Profile Types
+export interface UserUpdate {
+  email?: string
+  username?: string
+  full_name?: string
+}
+
+export interface ChangePasswordRequest {
+  current_password: string
+  new_password: string
+}
+
+
+// Scanner Types
+export interface ScannerRow {
+  ticker: string
+  last_price: number | null
+  rsi_14: number | null
+  macd_h: number | null
+  bb_upper: number | null
+  bb_lower: number | null
+  timestamp: string
+}
+
+export type ScannerSort = 'rsi_asc' | 'rsi_desc' | 'macd_desc'
 

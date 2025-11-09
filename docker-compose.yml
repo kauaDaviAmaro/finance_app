@@ -1,7 +1,25 @@
 version: '3.8'
 
+# ============================================================================
+# FINANCE APP - DOCKER COMPOSE ORCHESTRATION
+# ============================================================================
+# Este é o arquivo DEFINITIVO que orquestra TODOS os 5 serviços principais:
+# 1. PostgreSQL (Database) - SQLAlchemy ORM
+# 2. Redis (Message Broker) - Celery Task Queue
+# 3. FastAPI (Backend API) - Python REST API
+# 4. Celery Worker (Background Tasks) - Processamento assíncrono
+# 5. Vue.js (Frontend) - Interface do usuário
+#
+# COMANDO ÚNICO PARA SUBIR TUDO:
+#   docker-compose up --build
+#
+# Isso sobe a PORRA TODA de uma vez. É assim que um Sênior faz.
+# ============================================================================
+
 services:
-  # Banco de dados PostgreSQL
+  # ==========================================================================
+  # 1. POSTGRESQL DATABASE (SQLAlchemy ORM)
+  # ==========================================================================
   db:
     image: postgres:15-alpine
     container_name: finance_db
@@ -18,24 +36,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - finance_network
+    restart: unless-stopped
 
-  # Redis para Celery
+  # ==========================================================================
+  # 2. REDIS MESSAGE BROKER (Celery Task Queue)
+  # ==========================================================================
   redis:
     image: redis:6-alpine
     container_name: finance_redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - finance_network
+    restart: unless-stopped
 
-  # API Backend
+  # ==========================================================================
+  # 3. FASTAPI BACKEND (Python REST API)
+  # ==========================================================================
   api:
     build:
       context: ./finance_backend
@@ -56,13 +82,27 @@ services:
       DEBUG: ${DEBUG:-false}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-}
     ports:
       - "${API_PORT:-8000}:8000"
     networks:
       - finance_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Celery Worker
+  # ==========================================================================
+  # 4. CELERY WORKER (Background Task Processor)
+  # ==========================================================================
   worker:
     build:
       context: ./finance_backend
@@ -73,12 +113,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-1}
@@ -87,7 +130,9 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-1} --prefetch-multiplier=1 -Q periodic_tasks
 
-  # Celery Beat
+  # ==========================================================================
+  # 5. CELERY BEAT (Scheduled Task Scheduler)
+  # ==========================================================================
   beat:
     build:
       context: ./finance_backend
@@ -98,20 +143,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - celerybeat_data:/app/celerybeat-schedule
     networks:
       - finance_network
     restart: unless-stopped
     command: celery -A app.celery_worker beat -l info
 
-  # Flower - Monitoramento de Filas Celery/Redis
+  # ==========================================================================
+  # 6. FLOWER (Celery Monitoring Dashboard - Optional)
+  # ==========================================================================
   flower:
     build:
       context: ./finance_backend
@@ -131,7 +183,9 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_worker flower
 
-  # Frontend
+  # ==========================================================================
+  # 7. VUE.JS FRONTEND (User Interface)
+  # ==========================================================================
   frontend:
     build:
       context: ./finance_frontend
@@ -140,17 +194,28 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: finance_frontend
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     networks:
       - finance_network
     restart: unless-stopped
 
+# ============================================================================
+# NETWORKS
+# ============================================================================
 networks:
   finance_network:
     driver: bridge
+    name: finance_network
 
+# ============================================================================
+# VOLUMES
+# ============================================================================
 volumes:
   postgres_data:
+    name: finance_postgres_data
+  celerybeat_data:
+    name: finance_celerybeat_data
 

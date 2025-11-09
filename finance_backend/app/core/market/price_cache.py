@@ -16,29 +16,35 @@ from app.core.market.ticker_utils import format_ticker
 logger = logging.getLogger(__name__)
 
 
-def get_current_price(ticker: str, db: Session = None) -> Optional[float]:
+def get_current_price(ticker: str, db: Session = None, cache_threshold_seconds: int = 900) -> Optional[float]:
     """
     Busca o preço atual de um ticker.
     Primeiro consulta o cache do banco de dados (TickerPrice).
-    Se não encontrar ou o cache estiver desatualizado (>15 min), busca na yfinance.
+    Se não encontrar ou o cache estiver desatualizado (idade > cache_threshold_seconds), busca na yfinance.
     Retorna None se não conseguir buscar.
+    
+    Args:
+        ticker: Símbolo do ticker
+        db: Sessão do banco de dados (opcional)
+        cache_threshold_seconds: Idade máxima do cache em segundos (padrão: 900 = 15 minutos)
+                                Use 0 para forçar busca direta, ignorando cache
     """
     from app.db.models import TickerPrice
     
     formatted_ticker = format_ticker(ticker)
     
-    # Se temos acesso ao DB, consultar o cache primeiro
-    if db:
+    # Se temos acesso ao DB, consultar o cache primeiro (a menos que threshold seja 0)
+    if db and cache_threshold_seconds > 0:
         try:
             cached_price = db.query(TickerPrice).filter(
                 TickerPrice.ticker == formatted_ticker
             ).first()
             
             if cached_price:
-                # Verificar se o cache está recente (menos de 15 minutos)
+                # Verificar se o cache está recente (menos que cache_threshold_seconds)
                 now = datetime.now(cached_price.timestamp.tzinfo) if cached_price.timestamp.tzinfo else datetime.now()
                 cache_age = now - cached_price.timestamp
-                if cache_age.total_seconds() < 900:  # 15 minutos
+                if cache_age.total_seconds() < cache_threshold_seconds:
                     return float(cached_price.last_price)
         except Exception as e:
             print(f"Erro ao consultar cache de preço para {formatted_ticker}: {e}")

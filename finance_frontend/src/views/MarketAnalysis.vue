@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { api, ApiError, type TechnicalAnalysis, type Fundamentals } from '../services/api/index'
@@ -21,6 +21,13 @@ const error = ref('')
 const technicalData = ref<TechnicalAnalysis | null>(null)
 const fundamentals = ref<Fundamentals | null>(null)
 const activeTab = ref<'technical' | 'fundamentals'>('technical')
+
+// Safely get the last technical data point for template usage without TS errors
+const lastItem = computed(() => {
+  const td = technicalData.value
+  if (!td || !td.data || td.data.length === 0) return null
+  return td.data[td.data.length - 1]
+})
 
 const periodOptions = [
   { value: '5d', label: '5 Dias' },
@@ -173,7 +180,7 @@ onMounted(async () => {
         <div v-if="activeTab === 'technical' && technicalData" class="technical-tab">
           <div class="ticker-header">
             <h3>{{ technicalData.ticker }}</h3>
-            <span class="period-badge">{{ periodOptions.find(p => p.value === technicalData.period)?.label }}</span>
+            <span class="period-badge">{{ periodOptions.find(p => p.value === technicalData?.period)?.label || period }}</span>
           </div>
 
           <!-- Gráfico de Preço -->
@@ -192,7 +199,7 @@ onMounted(async () => {
                 <span>Preço Atual</span>
               </div>
               <div class="indicator-value">
-                {{ technicalData.data.length > 0 ? formatCurrency(technicalData.data[technicalData.data.length - 1].close) : 'N/A' }}
+                {{ lastItem ? formatCurrency(lastItem.close) : 'N/A' }}
               </div>
             </div>
 
@@ -201,11 +208,11 @@ onMounted(async () => {
                 <Activity :size="20" />
                 <span>RSI (14)</span>
               </div>
-              <div class="indicator-value" :style="{ color: getRSIStatus(technicalData.data[technicalData.data.length - 1]?.rsi).color }">
-                {{ technicalData.data[technicalData.data.length - 1]?.rsi?.toFixed(2) || 'N/A' }}
+              <div class="indicator-value" :style="{ color: getRSIStatus(lastItem?.rsi).color }">
+                {{ lastItem?.rsi ? lastItem.rsi.toFixed(2) : 'N/A' }}
               </div>
               <div class="indicator-status">
-                {{ getRSIStatus(technicalData.data[technicalData.data.length - 1]?.rsi).status }}
+                {{ getRSIStatus(lastItem?.rsi).status }}
               </div>
             </div>
 
@@ -215,7 +222,7 @@ onMounted(async () => {
                 <span>MACD</span>
               </div>
               <div class="indicator-value">
-                {{ technicalData.data[technicalData.data.length - 1]?.macd?.toFixed(2) || 'N/A' }}
+                {{ lastItem?.macd ? lastItem.macd.toFixed(2) : 'N/A' }}
               </div>
             </div>
 

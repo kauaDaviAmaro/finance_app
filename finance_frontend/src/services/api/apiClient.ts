@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import type { AxiosInstance } from 'axios'
+import { isTokenExpired } from '../../utils/jwt'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -21,6 +22,16 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
+      // Verifica se o token está expirado antes de enviar a requisição
+      if (isTokenExpired(token)) {
+        // Remove o token expirado
+        localStorage.removeItem('token')
+        // Redireciona para login se não estiver já na página de login
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          window.location.href = '/login'
+        }
+        return Promise.reject(new ApiError(401, 'Token expirado'))
+      }
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
@@ -36,6 +47,19 @@ apiClient.interceptors.response.use(
   },
   (error: AxiosError) => {
     if (error.response) {
+      // Se receber 401 (não autorizado), o token pode estar expirado ou inválido
+      if (error.response.status === 401) {
+        const token = localStorage.getItem('token')
+        if (token) {
+          // Remove o token inválido
+          localStorage.removeItem('token')
+          // Redireciona para login se não estiver já na página de login
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+            window.location.href = '/login'
+          }
+        }
+      }
+      
       const message =
         (error.response.data as { detail?: string })?.detail ||
         error.response.statusText ||

@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.schemas.stock import (
     TickerRequest, TickerHistoricalDataOut, TechnicalAnalysisOut, FundamentalsOut
 )
 from app.core.market_service import (
     get_historical_data, get_technical_analysis, get_company_fundamentals
 )
-from app.core.security import get_current_user
-from app.db.models import User
+from app.core.security import get_current_user, get_pro_user
+from app.db.models import User, DailyScanResult
+from app.db.database import get_db
+from sqlalchemy.orm import Session
+from typing import Optional, Literal, List
 
 router = APIRouter(prefix="/stocks", tags=["Stocks Analysis"])
 
@@ -114,9 +117,88 @@ def fetch_fundamentals(
             ticker=ticker,
             **fundamentals
         )
-
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Erro no servidor ao buscar fundamentos: {e}"
+        )
+
+
+@router.get("/scanner")
+def get_scanner_results(
+    rsi_lt: Optional[float] = Query(default=None),
+    rsi_gt: Optional[float] = Query(default=None),
+    macd_gt: Optional[float] = Query(default=None),
+    macd_lt: Optional[float] = Query(default=None),
+    bb_touch: Optional[Literal['upper', 'lower', 'any']] = Query(default=None),
+    sort: Optional[Literal['rsi_asc', 'rsi_desc', 'macd_desc']] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user: User = Depends(get_pro_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint PRO: retorna snapshot filtrado do scanner diário.
+    Não faz chamadas externas; apenas SELECT em daily_scan_results.
+    """
+    try:
+        query = db.query(DailyScanResult)
+
+        if rsi_lt is not None:
+            query = query.filter(DailyScanResult.rsi_14 != None, DailyScanResult.rsi_14 < rsi_lt)  # noqa: E711
+        if rsi_gt is not None:
+            query = query.filter(DailyScanResult.rsi_14 != None, DailyScanResult.rsi_14 > rsi_gt)  # noqa: E711
+        if macd_gt is not None:
+            query = query.filter(DailyScanResult.macd_h != None, DailyScanResult.macd_h > macd_gt)  # noqa: E711
+        if macd_lt is not None:
+            query = query.filter(DailyScanResult.macd_h != None, DailyScanResult.macd_h < macd_lt)  # noqa: E711
+
+        if bb_touch is not None:
+            if bb_touch == 'upper':
+                query = query.filter(
+                    DailyScanResult.bb_upper != None,  # noqa: E711
+                    DailyScanResult.last_price >= DailyScanResult.bb_upper
+                )
+            elif bb_touch == 'lower':
+                query = query.filter(
+                    DailyScanResult.bb_lower != None,  # noqa: E711
+                    DailyScanResult.last_price <= DailyScanResult.bb_lower
+                )
+            elif bb_touch == 'any':
+                query = query.filter(
+                    (
+                        (DailyScanResult.bb_upper != None) & (DailyScanResult.last_price >= DailyScanResult.bb_upper)
+                    ) | (
+                        (DailyScanResult.bb_lower != None) & (DailyScanResult.last_price <= DailyScanResult.bb_lower)
+                    )
+                )
+
+        if sort == 'rsi_asc':
+            query = query.order_by(DailyScanResult.rsi_14.asc().nulls_last())
+        elif sort == 'rsi_desc':
+            query = query.order_by(DailyScanResult.rsi_14.desc().nulls_last())
+        elif sort == 'macd_desc':
+            query = query.order_by(DailyScanResult.macd_h.desc().nulls_last())
+
+        results: List[DailyScanResult] = query.limit(limit).all()
+
+        return [
+            {
+                "ticker": r.ticker,
+                "last_price": float(r.last_price) if r.last_price is not None else None,
+                "rsi_14": float(r.rsi_14) if r.rsi_14 is not None else None,
+                "macd_h": float(r.macd_h) if r.macd_h is not None else None,
+                "bb_upper": float(r.bb_upper) if r.bb_upper is not None else None,
+                "bb_lower": float(r.bb_lower) if r.bb_lower is not None else None,
+                "timestamp": r.timestamp,
+            }
+            for r in results
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no servidor ao consultar scanner: {e}"
         )

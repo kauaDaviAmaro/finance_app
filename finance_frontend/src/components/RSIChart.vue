@@ -28,11 +28,12 @@ const props = defineProps<{
 }>()
 
 const chartData = computed(() => {
-  const labels = props.data.data.map((d) => new Date(d.date).toLocaleDateString('pt-BR'))
-  const rsiValues = props.data.data.map((d) => d.rsi).filter((v) => v !== null && v !== undefined)
+  const validData = props.data.data.filter((d) => d.rsi !== null && d.rsi !== undefined)
+  const labels = validData.map((d) => new Date(d.date).toLocaleDateString('pt-BR'))
+  const rsiValues = validData.map((d) => d.rsi!)
 
   return {
-    labels: labels.filter((_, i) => props.data.data[i].rsi !== null && props.data.data[i].rsi !== undefined),
+    labels,
     datasets: [
       {
         label: 'RSI',

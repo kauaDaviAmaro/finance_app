@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type AlertListResponse, type Alert, type AlertCreate } from '../services/api/index'
+import { api, ApiError, type AlertListResponse, type AlertCreate } from '../services/api/index'
 import { Bell, Plus, Trash2, Loader2, AlertCircle, Search, X, Power, PowerOff, TrendingUp } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 
@@ -57,6 +57,16 @@ const triggeredAlerts = computed(() => {
   return alerts.value.alerts.filter(alert => alert.triggered_at)
 })
 
+const isPro = computed(() => {
+  return authStore.user?.role === 'PRO' || authStore.user?.role === 'ADMIN'
+})
+
+const canCreateAlert = computed(() => {
+  if (isPro.value) return true
+  if (!alerts.value) return true
+  return alerts.value.alerts.length < 1
+})
+
 async function loadAlerts() {
   loading.value = true
   error.value = null
@@ -82,6 +92,13 @@ async function createAlert() {
 
   if (needsThreshold.value && (!newAlert.value.threshold_value || newAlert.value.threshold_value <= 0)) {
     error.value = 'Por favor, informe um valor limite válido'
+    return
+  }
+
+  // Verificar se usuário pode criar alerta
+  if (!canCreateAlert.value) {
+    error.value = 'Usuários grátis podem criar apenas 1 alerta. Faça upgrade para PRO para criar alertas ilimitados.'
+    router.push('/subscription')
     return
   }
 
@@ -112,7 +129,13 @@ async function createAlert() {
     await loadAlerts()
   } catch (err) {
     if (err instanceof ApiError) {
-      error.value = err.message
+      if (err.status === 402) {
+        // Payment Required - redirecionar para subscription
+        error.value = 'Usuários grátis podem criar apenas 1 alerta. Faça upgrade para PRO para criar alertas ilimitados.'
+        router.push('/subscription')
+      } else {
+        error.value = err.message
+      }
     } else {
       error.value = 'Erro ao criar alerta. Tente novamente.'
     }
@@ -222,9 +245,13 @@ onMounted(async () => {
               <p class="subtitle">Configure alertas para monitorar o mercado</p>
             </div>
           </div>
-          <button @click="showAddForm = !showAddForm" class="add-button">
+          <button 
+            @click="!canCreateAlert ? router.push('/subscription') : showAddForm = !showAddForm" 
+            class="add-button"
+            :class="{ 'disabled': !canCreateAlert && !isPro }"
+          >
             <Plus :size="20" />
-            <span>Novo Alerta</span>
+            <span>{{ !canCreateAlert && !isPro ? 'Upgrade para PRO' : 'Novo Alerta' }}</span>
           </button>
         </div>
       </div>
@@ -341,9 +368,12 @@ onMounted(async () => {
         <Bell :size="64" class="empty-icon" />
         <h2>Nenhum alerta configurado</h2>
         <p>Configure alertas para receber notificações sobre movimentos do mercado</p>
-        <button @click="showAddForm = true" class="empty-action-button">
+        <button 
+          @click="!canCreateAlert ? router.push('/subscription') : showAddForm = true" 
+          class="empty-action-button"
+        >
           <Plus :size="20" />
-          <span>Criar Primeiro Alerta</span>
+          <span>{{ !canCreateAlert && !isPro ? 'Upgrade para PRO' : 'Criar Primeiro Alerta' }}</span>
         </button>
       </div>
 

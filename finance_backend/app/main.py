@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
 from app.db.database import engine, SessionLocal
 from app.db.models import Base, User, WatchlistItem, PortfolioItem, Alert, TickerPrice
 import logging
+import traceback
 
 # SQLAdmin imports
 from sqladmin import Admin, ModelView
@@ -55,14 +58,59 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# Configuração de CORS
+# Configuração de CORS - DEVE vir ANTES dos routers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Em produção, especificar origens específicas
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Exception handlers para garantir CORS headers mesmo em erros
+# Ordem: mais específicos primeiro
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 # --- (Início) Registro dos Modelos no SQLAdmin ---
 
@@ -133,6 +181,8 @@ from app.routers import stock as stock_router
 from app.routers import watchlist as watchlist_router
 from app.routers import portfolio as portfolio_router
 from app.routers import alert as alert_router
+from app.routers import webhooks as webhooks_router
+from app.routers import subscription as subscription_router
 
 # Inclui as rotas
 app.include_router(auth_router.router)
@@ -140,6 +190,8 @@ app.include_router(stock_router.router)
 app.include_router(watchlist_router.router)
 app.include_router(portfolio_router.router)
 app.include_router(alert_router.router)
+app.include_router(webhooks_router.router)
+app.include_router(subscription_router.router)
 
 @app.get("/health")
 def health_check():

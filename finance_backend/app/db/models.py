@@ -9,6 +9,7 @@ from app.db.database import Base
 
 class UserRole(PyEnum):
     ADMIN = "ADMIN"
+    PRO = "PRO"
     USER = "USER"
 
 class User(Base):
@@ -22,6 +23,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     role = Column(SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.USER)
+    stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
+    subscription_status = Column(String(50), nullable=True, default="inactive")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -95,3 +98,22 @@ class TickerPrice(Base):
     
     def __repr__(self):
         return f"<TickerPrice(ticker='{self.ticker}', price={self.last_price}, timestamp={self.timestamp})>"
+
+
+class DailyScanResult(Base):
+    __tablename__ = "daily_scan_results"
+    
+    ticker = Column(String(20), primary_key=True, index=True)
+    last_price = Column(Numeric(18, 6), nullable=False)
+    rsi_14 = Column(Numeric(9, 4), nullable=True)
+    macd_h = Column(Numeric(9, 4), nullable=True)
+    bb_upper = Column(Numeric(18, 6), nullable=True)
+    bb_lower = Column(Numeric(18, 6), nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    
+    def __repr__(self):
+        return (
+            f"<DailyScanResult(ticker='{self.ticker}', price={self.last_price}, "
+            f"rsi_14={self.rsi_14}, macd_h={self.macd_h}, "
+            f"bb_upper={self.bb_upper}, bb_lower={self.bb_lower}, timestamp={self.timestamp})>"
+        )

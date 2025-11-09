@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models import User, Alert
+from app.db.models import User, Alert, UserRole
 from app.schemas.alert import AlertCreate, AlertOut, AlertListResponse
 from app.core.security import get_current_user
 
@@ -44,8 +44,19 @@ def create_alert(
 ):
     """
     Cria um novo alerta para um indicador técnico.
+    Usuários USER (grátis) podem criar apenas 1 alerta (sem notificação por email).
+    Usuários PRO podem criar alertas ilimitados (com notificação por email).
     """
     validate_alert_data(payload.indicator_type, payload.condition, payload.threshold_value)
+    
+    # Verificar limite de alertas para usuários USER
+    if current_user.role == UserRole.USER:
+        total_alerts = db.query(Alert).filter(Alert.user_id == current_user.id).count()
+        if total_alerts >= 1:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Usuários grátis podem criar apenas 1 alerta. Faça upgrade para PRO para criar alertas ilimitados."
+            )
     
     alert = Alert(
         user_id=current_user.id,

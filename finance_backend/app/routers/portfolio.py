@@ -9,6 +9,7 @@ from app.schemas.portfolio import (
 )
 from app.core.security import get_current_user
 from app.core.market_service import get_current_price
+from app.db.models import UserRole
 
 router = APIRouter(prefix="/portfolio", tags=["Portfolio"])
 
@@ -55,8 +56,10 @@ def add_portfolio_item(
     db.commit()
     db.refresh(portfolio_item)
     
-    # Buscar preço atual e calcular P&L (usando cache do DB)
-    current_price = get_current_price(portfolio_item.ticker, db)
+    # Buscar preço atual e calcular P&L
+    # PRO: usa cache rápido (5 minutos), USER: força busca direta (sem cache)
+    cache_threshold = 300 if current_user.role in [UserRole.PRO, UserRole.ADMIN] else 0
+    current_price = get_current_price(portfolio_item.ticker, db, cache_threshold_seconds=cache_threshold)
     current_price_decimal = Decimal(str(current_price)) if current_price else None
     realized_pnl, unrealized_pnl = calculate_portfolio_pnl(portfolio_item, current_price_decimal)
     
@@ -98,8 +101,10 @@ def get_portfolio(
         purchase_value = Decimal(str(item.purchase_price)) * item.quantity
         total_invested += purchase_value
         
-        # Buscar preço atual (usando cache do DB)
-        current_price = get_current_price(item.ticker, db)
+        # Buscar preço atual
+        # PRO: usa cache rápido (5 minutos), USER: força busca direta (sem cache)
+        cache_threshold = 300 if current_user.role in [UserRole.PRO, UserRole.ADMIN] else 0
+        current_price = get_current_price(item.ticker, db, cache_threshold_seconds=cache_threshold)
         current_price_decimal = Decimal(str(current_price)) if current_price else None
         
         # Calcular P&L
@@ -153,8 +158,10 @@ def get_portfolio_item(
             detail="Posição não encontrada"
         )
     
-    # Buscar preço atual e calcular P&L (usando cache do DB)
-    current_price = get_current_price(item.ticker, db)
+    # Buscar preço atual e calcular P&L
+    # PRO: usa cache rápido (5 minutos), USER: força busca direta (sem cache)
+    cache_threshold = 300 if current_user.role in [UserRole.PRO, UserRole.ADMIN] else 0
+    current_price = get_current_price(item.ticker, db, cache_threshold_seconds=cache_threshold)
     current_price_decimal = Decimal(str(current_price)) if current_price else None
     realized_pnl, unrealized_pnl = calculate_portfolio_pnl(item, current_price_decimal)
     

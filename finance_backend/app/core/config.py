@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: str = "no-reply@seuapp.com"
     EMAILS_FROM_NAME: str = "Finances API Alertas"
     
+    # Stripe
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PRICE_ID_PRO: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+    STRIPE_SUCCESS_URL: Optional[str] = None
+    STRIPE_CANCEL_URL: Optional[str] = None
+    STRIPE_RETURN_URL: Optional[str] = None
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8"

@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign } from 'lucide-vue-next'
+import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign, Crown } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const showMobileMenu = ref(false)
+
+const isPro = computed(() => {
+  return authStore.user?.role === 'PRO' || authStore.user?.role === 'ADMIN'
+})
 
 function handleLogout() {
   authStore.logout()
@@ -50,11 +54,28 @@ function toggleMobileMenu() {
             <TrendingUp :size="18" />
             <span>Análise</span>
           </router-link>
+          <router-link to="/scanner" class="nav-link" aria-label="Scanner (PRO)">
+            <Crown :size="18" />
+            <span>Scanner (PRO)</span>
+          </router-link>
         </div>
       </nav>
 
       <div class="header-actions">
-        <div class="user-info">
+        <router-link 
+          v-if="!isPro" 
+          to="/subscription" 
+          class="pro-link"
+          title="Upgrade para PRO"
+        >
+          <Crown :size="16" />
+          <span>PRO</span>
+        </router-link>
+        <div v-else class="pro-badge" title="Plano PRO Ativo">
+          <Crown :size="16" />
+          <span>PRO</span>
+        </div>
+        <router-link to="/profile" class="user-info" aria-label="Perfil">
           <div class="user-avatar">
             <User :size="20" />
           </div>
@@ -62,7 +83,7 @@ function toggleMobileMenu() {
             <span class="user-name">{{ authStore.user?.full_name || authStore.user?.username }}</span>
             <span class="user-email">{{ authStore.user?.email }}</span>
           </div>
-        </div>
+        </router-link>
         <button @click="handleLogout" class="logout-button" title="Sair">
           <LogOut :size="18" />
           <span class="logout-text">Sair</span>
@@ -95,6 +116,23 @@ function toggleMobileMenu() {
         <router-link to="/market-analysis" class="mobile-nav-link" aria-label="Análise de Mercado">
           <TrendingUp :size="20" />
           <span>Análise</span>
+        </router-link>
+        <router-link to="/scanner" class="mobile-nav-link" aria-label="Scanner (PRO)">
+          <Crown :size="20" />
+          <span>Scanner (PRO)</span>
+        </router-link>
+        <router-link 
+          v-if="!isPro" 
+          to="/subscription" 
+          class="mobile-nav-link"
+          aria-label="Upgrade para PRO"
+        >
+          <Crown :size="20" />
+          <span>Upgrade PRO</span>
+        </router-link>
+        <router-link to="/profile" class="mobile-nav-link" aria-label="Perfil">
+          <User :size="20" />
+          <span>Perfil</span>
         </router-link>
       </nav>
     </div>
@@ -186,6 +224,39 @@ function toggleMobileMenu() {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.pro-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pro-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+}
+
+.pro-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .user-info {

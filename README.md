@@ -65,6 +65,104 @@ A comprehensive financial management application for tracking investments, monit
 - Lucide Vue - Icon library
 - Vite - Build tool and dev server
 
+## Architecture Diagram
+
+Este é o diagrama de arquitetura que mostra como todos os serviços interagem. Este é o desenho de 8 mil euros.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         FINANCE APP ARCHITECTURE                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│                 │
+│  Vue.js         │  ◄─── Frontend (Port 3000)
+│  (Frontend)     │
+│                 │
+└────────┬────────┘
+         │
+         │ HTTP/REST API
+         │ (GET, POST, PATCH, DELETE)
+         │
+         ▼
+┌─────────────────┐
+│                 │
+│  FastAPI        │  ◄─── Backend API (Port 8000)
+│  (Backend)      │
+│                 │
+└────┬───────┬────┘
+     │       │
+     │       │
+     │       │
+     │       │  ┌─────────────────┐
+     │       │  │                 │
+     │       └─►│  Redis          │  ◄─── Message Broker (Port 6379)
+     │          │  (Broker)       │
+     │          │                 │
+     │          └────────┬────────┘
+     │                   │
+     │                   │ "Enfileira Tarefa"
+     │                   │
+     │          ┌────────▼────────┐
+     │          │                 │
+     │          │  Celery Worker  │  ◄─── Background Task Processor
+     │          │                 │
+     │          └────────┬────────┘
+     │                   │
+     │                   │ "Processa"
+     │                   │
+     │          ┌────────▼────────┐
+     │          │                 │
+     │          │  Celery Beat    │  ◄─── Scheduled Task Scheduler
+     │          │                 │
+     │          └────────┬────────┘
+     │                   │
+     │                   │ "Agenda Tarefas"
+     │                   │
+     │          ┌────────▼────────┐
+     │          │                 │
+     │          │  Redis          │
+     │          │  (Broker)       │
+     │          │                 │
+     │          └─────────────────┘
+     │
+     │ "Lê/Escreve dados"
+     │
+     ▼
+┌─────────────────┐
+│                 │
+│  PostgreSQL     │  ◄─── Database (Port 5432)
+│  (SQLAlchemy)   │
+│                 │
+└─────────────────┘
+
+FLUXO DE DADOS:
+
+1. [Vue.js] ──HTTP──► [FastAPI] ──SQL──► [PostgreSQL]
+   Frontend faz requisição → API processa → Salva no banco
+
+2. [FastAPI] ──Enfileira──► [Redis] ──Consome──► [Celery Worker]
+   API enfileira tarefa → Redis armazena → Worker processa
+
+3. [Celery Beat] ──Agenda──► [Redis] ──Consome──► [Celery Worker]
+   Beat agenda tarefa → Redis armazena → Worker processa
+
+4. [Celery Worker] ──Processa──► [PostgreSQL]
+   Worker executa tarefa → Atualiza banco de dados
+
+5. [Vue.js] ──Lê──► [FastAPI] ──Lê──► [PostgreSQL]
+   Frontend consulta → API busca → Retorna dados do banco
+```
+
+### Componentes da Arquitetura
+
+1. **Vue.js (Frontend)**: Interface do usuário que se comunica com a API via HTTP
+2. **FastAPI (Backend)**: API REST que processa requisições e orquestra operações
+3. **PostgreSQL (Database)**: Banco de dados relacional gerenciado via SQLAlchemy
+4. **Redis (Broker)**: Message broker que gerencia filas de tarefas do Celery
+5. **Celery Worker**: Processa tarefas assíncronas em background
+6. **Celery Beat**: Agenda tarefas periódicas (ex: verificação de alertas)
+
 ## Project Structure
 
 ```
@@ -109,13 +207,72 @@ finance_app/
 
 ## Installation
 
-### Using Docker (Recommended)
+### Using Docker (Recommended) - UM ÚNICO COMANDO
 
-This project includes three Docker Compose configurations:
+**Este projeto é o POSTER CHILD do Docker Compose. A stack completa são 5 serviços principais:**
 
-- **`docker-compose.yml`** - General configuration
-- **`docker-compose.dev.yml`** - Development with hot reload
-- **`docker-compose.prod.yml`** - Production optimized
+1. **PostgreSQL** (Database) - SQLAlchemy ORM
+2. **Redis** (Message Broker) - Celery Task Queue  
+3. **FastAPI** (Backend API) - Python REST API
+4. **Celery Worker** (Background Tasks) - Processamento assíncrono
+5. **Vue.js** (Frontend) - Interface do usuário
+
+**COMANDO ÚNICO PARA SUBIR TUDO:**
+
+```bash
+docker-compose up --build
+```
+
+**Isso sobe a PORRA TODA de uma vez. É assim que um Sênior faz.**
+
+Este projeto inclui três configurações Docker Compose:
+
+- **`docker-compose.yml`** - Configuração geral (RECOMENDADO - um comando sobe tudo)
+- **`docker-compose.dev.yml`** - Desenvolvimento com hot reload
+- **`docker-compose.prod.yml`** - Produção otimizada
+
+#### Quick Start (Produção/Staging)
+
+1. Clone o repositório:
+```bash
+git clone <repository-url>
+cd finance_app
+```
+
+2. Crie um arquivo `.env` na raiz (veja `.env.example` para referência):
+```bash
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=finances_db
+DB_PORT=5432
+API_PORT=8000
+FRONTEND_PORT=3000
+SECRET_KEY=your-secret-key-change-in-production
+DEBUG=false
+VITE_API_BASE_URL=http://localhost:8000
+CELERY_WORKER_CONCURRENCY=1
+```
+
+3. **COMANDO ÚNICO - Sobe tudo:**
+```bash
+docker-compose up --build
+```
+
+Isso iniciará:
+- ✅ PostgreSQL database na porta 5432
+- ✅ Redis na porta 6379
+- ✅ FastAPI backend na porta 8000
+- ✅ Celery worker para tarefas em background
+- ✅ Celery beat para tarefas agendadas
+- ✅ Vue.js frontend na porta 3000
+- ✅ Flower (monitoramento Celery) na porta 5555 (localhost)
+
+O frontend estará disponível em `http://localhost:3000` e a API em `http://localhost:8000`
+
+4. Para parar os serviços:
+```bash
+docker-compose down
+```
 
 #### Development Setup
 

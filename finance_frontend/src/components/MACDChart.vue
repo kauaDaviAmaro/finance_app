@@ -14,6 +14,7 @@ import {
   Legend,
 } from 'chart.js'
 import type { TechnicalAnalysis } from '../services/api/index'
+import type { ChartData, ChartOptions } from 'chart.js'
 
 ChartJS.register(
   CategoryScale,
@@ -40,7 +41,7 @@ const props = defineProps<{
   data: TechnicalAnalysis
 }>()
 
-const chartData = computed(() => {
+const chartData = computed((): ChartData<'line'> => {
   const validData = props.data.data.filter((d) => d.macd !== null && d.macd !== undefined)
   const labels = validData.map((d) => new Date(d.date).toLocaleDateString('pt-BR'))
   const macd = validData.map((d) => d.macd!)
@@ -60,6 +61,7 @@ const chartData = computed(() => {
         pointHoverRadius: 4,
         yAxisID: 'y',
         order: 2,
+        type: 'line',
       },
       {
         label: 'Sinal',
@@ -71,6 +73,7 @@ const chartData = computed(() => {
         pointHoverRadius: 4,
         yAxisID: 'y',
         order: 2,
+        type: 'line',
       },
       {
         label: 'Histograma',
@@ -78,27 +81,27 @@ const chartData = computed(() => {
         backgroundColor: macdHistogram.map((v) => {
           if (v === null || v === undefined) return 'transparent'
           return v >= 0 ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.6)'
-        }),
+        }) as string[],
         borderColor: macdHistogram.map((v) => {
           if (v === null || v === undefined) return 'transparent'
           return v >= 0 ? '#10b981' : '#ef4444'
-        }),
+        }) as string[],
         borderWidth: 1,
-        type: 'bar' as const,
+        type: 'bar',
         yAxisID: 'y1',
         order: 1,
-      },
+      } as any,
     ],
   }
 })
 
-const chartOptions = {
+const chartOptions: ChartOptions<'line'> = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
       display: true,
-      position: 'top' as const,
+      position: 'top',
       labels: {
         font: {
           size: 11,
@@ -144,9 +147,9 @@ const chartOptions = {
       },
     },
     y: {
-      type: 'linear' as const,
+      type: 'linear',
       display: true,
-      position: 'left' as const,
+      position: 'left',
       grid: {
         color: 'rgba(0, 0, 0, 0.05)',
       },
@@ -157,9 +160,9 @@ const chartOptions = {
       },
     },
     y1: {
-      type: 'linear' as const,
+      type: 'linear',
       display: true,
-      position: 'right' as const,
+      position: 'right',
       grid: {
         drawOnChartArea: false,
       },
@@ -170,7 +173,7 @@ const chartOptions = {
       },
     },
   },
-}
+} as any
 </script>
 
 <template>

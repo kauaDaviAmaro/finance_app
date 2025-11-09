@@ -13,10 +13,15 @@ def check_and_trigger_alerts(db: Session):
     """
     Verifica todos os alertas ativos e dispara se as condições forem atendidas.
     Implementa checagem de cruzamento (D-1 vs D-0) para maior precisão.
+    Apenas alertas de usuários PRO ou ADMIN são processados (com envio de email).
     """
-    from app.db.models import Alert, User
+    from app.db.models import Alert, User, UserRole
     
-    active_alerts = db.query(Alert).filter(Alert.is_active == True).all()
+    # Puxa APENAS alertas de usuários PRO ou ADMIN (que podem receber emails)
+    active_alerts = db.query(Alert).join(User).filter(
+        Alert.is_active == True,
+        User.role.in_([UserRole.PRO, UserRole.ADMIN])
+    ).all()
     
     if not active_alerts:
         return 0
@@ -164,7 +169,8 @@ def check_and_trigger_alerts(db: Session):
                 if trigger_condition:
                     user = db.query(User).filter(User.id == alert.user_id).first()
                     
-                    if user and user.email:
+                    # A checagem de role já foi feita no início (query), mas garantimos aqui também
+                    if user and user.email and user.role in [UserRole.PRO, UserRole.ADMIN]:
                         subject = f"🚨 ALERTA DISPARADO: {alert.ticker} - {alert.indicator_type}"
                         
                         if alert.condition in ["CROSS_ABOVE", "CROSS_BELOW"]:

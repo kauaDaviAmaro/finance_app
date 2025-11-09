@@ -3,7 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { api, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate } from '../services/api/index'
-import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Calendar, Search } from 'lucide-vue-next'
+import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Search } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
@@ -22,12 +22,12 @@ const newPosition = ref<PortfolioItemCreate>({
   ticker: '',
   quantity: 1,
   purchase_price: 0,
-  purchase_date: new Date().toISOString().split('T')[0],
+  purchase_date: new Date().toISOString().split('T')[0] as string,
 })
 
 const sellData = ref<PortfolioItemUpdate>({
   sold_price: 0,
-  sold_date: new Date().toISOString().split('T')[0],
+  sold_date: new Date().toISOString().split('T')[0] as string,
 })
 
 const totalPnL = computed(() => {
@@ -94,7 +94,7 @@ async function addPosition() {
       ticker: '',
       quantity: 1,
       purchase_price: 0,
-      purchase_date: new Date().toISOString().split('T')[0],
+      purchase_date: new Date().toISOString().split('T')[0] as string,
     }
     showAddForm.value = false
     await loadPortfolio()
@@ -114,7 +114,7 @@ function openSellForm(item: PortfolioItem) {
   showSellForm.value = item.id
   sellData.value = {
     sold_price: item.current_price || item.purchase_price,
-    sold_date: new Date().toISOString().split('T')[0],
+    sold_date: new Date().toISOString().split('T')[0] as string,
   }
 }
 

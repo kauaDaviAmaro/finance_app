@@ -18,3 +18,4 @@ pytest-mock
 httpx
 flower
 sqladmin
+stripe>=7.0.0

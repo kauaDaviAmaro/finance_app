@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { isTokenValid } from '../utils/jwt'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     requiresGuest?: boolean
+    requiresPro?: boolean
   }
 }
 
@@ -58,21 +60,73 @@ const router = createRouter({
       component: () => import('../views/Portfolio.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/scanner',
+      name: 'ScannerPro',
+      component: () => import('../views/Scanner.vue'),
+      meta: { requiresAuth: true, requiresPro: true },
+    },
+    {
+      path: '/subscription',
+      name: 'Subscription',
+      component: () => import('../views/Subscription.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/Profile.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  const token = authStore.token
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/home')
-  } else if (to.path === '/' && authStore.isAuthenticated) {
-    next('/home')
-  } else {
-    next()
+  // Se a rota requer autenticação, verifica se o token está válido
+  if (to.meta.requiresAuth) {
+    // Verifica se existe token e se está válido (não expirado)
+    if (!token || !isTokenValid(token)) {
+      // Se o token estiver inválido ou expirado, remove-o e redireciona para login
+      if (token) {
+        authStore.logout()
+      }
+      next('/login')
+      return
+    }
+    
+    // Token válido, verifica se está autenticado
+    if (!authStore.isAuthenticated) {
+      next('/login')
+      return
+    }
   }
+
+  // Se a rota requer PRO, valida papel do usuário
+  if (to.meta.requiresPro) {
+    const role = authStore.user?.role
+    const isPro = role === 'PRO' || role === 'ADMIN'
+    if (!isPro) {
+      next('/subscription')
+      return
+    }
+  }
+
+  // Se a rota requer que o usuário não esteja autenticado
+  if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next('/home')
+    return
+  }
+
+  // Redireciona para home se estiver na landing page e autenticado
+  if (to.path === '/' && authStore.isAuthenticated) {
+    next('/home')
+    return
+  }
+
+  next()
 })
 
 export default router

@@ -1,12 +1,24 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { api, type User, type LoginRequest, type RegisterRequest, ApiError } from '../services/api/index'
+import { api, type User, type LoginRequest, type RegisterRequest, type UserUpdate, ApiError } from '../services/api/index'
+import { isTokenValid } from '../utils/jwt'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<User | null>(null)
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => {
+    if (!token.value) {
+      return false
+    }
+    // Verifica se o token está válido (não expirado)
+    if (!isTokenValid(token.value)) {
+      // Se o token estiver expirado, remove-o
+      setToken(null)
+      return false
+    }
+    return true
+  })
 
   function setToken(newToken: string | null) {
     token.value = newToken
@@ -58,6 +70,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateProfile(update: UserUpdate): Promise<void> {
+    try {
+      await api.updateMe(update)
+      await fetchUser()
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw new Error(error.message || 'Erro ao atualizar perfil')
+      }
+      throw new Error('Erro ao atualizar perfil. Tente novamente.')
+    }
+  }
+
   function logout() {
     setToken(null)
     setUser(null)
@@ -65,9 +89,15 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function initialize() {
     if (token.value) {
+      // Verifica se o token está válido antes de tentar buscar o usuário
+      if (!isTokenValid(token.value)) {
+        logout()
+        return
+      }
       try {
         await fetchUser()
-      } catch (error) {
+      } catch {
+        // Se houver erro ao buscar usuário, faz logout
         logout()
       }
     }
@@ -81,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     fetchUser,
+    updateProfile,
     initialize,
   }
 })
