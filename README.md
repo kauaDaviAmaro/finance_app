@@ -1,5 +1,7 @@
 # Finance App
 
+![Finance App Demo](videos/finaceapp.gif)
+
 A comprehensive financial management application for tracking investments, monitoring stock markets, managing portfolios, and receiving alerts on market conditions. The application consists of a FastAPI backend with PostgreSQL database and a Vue.js frontend.
 
 ## Features
