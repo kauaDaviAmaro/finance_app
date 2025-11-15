@@ -26,3 +26,4 @@ COMMENT ON TABLE support_messages IS 'Stores support messages from users';
 COMMENT ON COLUMN support_messages.status IS 'Status: pending, in_progress, resolved, closed';
 COMMENT ON COLUMN support_messages.category IS 'Category: general, technical, billing, feature';
 
+

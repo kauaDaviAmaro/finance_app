@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 # Configurar Stripe
-if settings.STRIPE_SECRET_KEY:
+if hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY:
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
@@ -26,7 +26,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     Endpoint para receber webhooks do Stripe.
     Processa eventos de assinatura para atualizar o status do usuário.
     """
-    if not settings.STRIPE_WEBHOOK_SECRET:
+    if not hasattr(settings, 'STRIPE_WEBHOOK_SECRET') or not settings.STRIPE_WEBHOOK_SECRET:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Stripe webhook secret não configurado"

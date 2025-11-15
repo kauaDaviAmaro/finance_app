@@ -3,8 +3,11 @@ from celery.schedules import crontab
 from app.core.config import settings
 from app.db.database import SessionLocal, engine
 from app.core.market_service import get_all_tracked_tickers, update_ticker_prices, check_and_trigger_alerts
-from app.db.models import Base
+from app.core.market.ticker_utils import get_all_b3_tickers
+from app.core.market.technical_analysis import get_scanner_indicators
+from app.db.models import Base, ScannerData
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -39,6 +42,13 @@ celery_app.conf.beat_schedule = {
     'schedule-alert-checker': {
         'task': 'app.celery_worker.check_alerts_task',
         'schedule': 600.0,  # 10 minutos
+        'args': (),
+        'options': {'queue': 'periodic_tasks'}
+    },
+    # Tarefa de scan completo do mercado (toda madrugada às 3:00 AM)
+    'schedule-full-market-scan': {
+        'task': 'app.celery_worker.run_full_market_scan',
+        'schedule': crontab(hour=3, minute=0),  # 3:00 AM
         'args': (),
         'options': {'queue': 'periodic_tasks'}
     },
@@ -133,4 +143,111 @@ def check_alerts_task(self):
         
     finally:
         db.close()
+
+
+@celery_app.task(
+    name='app.celery_worker.run_full_market_scan',
+    bind=True,
+    rate_limit='1/h',  # Máximo 1 execução por hora (já é controlada pelo beat schedule)
+    max_retries=2,
+    default_retry_delay=3600  # 1 hora em caso de retry
+)
+def _run_full_market_scan_logic():
+    """
+    Lógica principal do scan completo do mercado B3.
+    Pode ser chamada diretamente ou via task Celery.
+    """
+    logger.info("Iniciando scan completo do mercado B3...")
+
+    db = SessionLocal()
+    
+    try:
+        # Garantir que as tabelas existem
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.error(f"Erro ao garantir a criação das tabelas no worker: {e}")
+        db.close()
+        return None
+
+    try:
+        # Ler lista completa de tickers B3 do arquivo estático
+        all_tickers = get_all_b3_tickers()
+        logger.info(f"Processando {len(all_tickers)} tickers do mercado B3...")
+        
+        success_count = 0
+        error_count = 0
+        delay_between_requests = 0.5  # Delay para evitar rate limiting do yfinance
+        
+        for idx, ticker in enumerate(all_tickers, 1):
+            try:
+                # Calcular indicadores técnicos
+                indicators = get_scanner_indicators(ticker)
+                
+                # Fazer UPSERT na tabela scanner_data
+                scanner_data = db.query(ScannerData).filter(ScannerData.ticker == ticker).first()
+                
+                if scanner_data:
+                    # UPDATE
+                    scanner_data.rsi_14 = indicators['rsi_14']
+                    scanner_data.macd_signal = indicators['macd_signal']
+                    scanner_data.mm_9_cruza_mm_21 = indicators['mm_9_cruza_mm_21']
+                    # last_updated é atualizado automaticamente pelo onupdate
+                else:
+                    # INSERT
+                    scanner_data = ScannerData(
+                        ticker=ticker,
+                        rsi_14=indicators['rsi_14'],
+                        macd_signal=indicators['macd_signal'],
+                        mm_9_cruza_mm_21=indicators['mm_9_cruza_mm_21']
+                    )
+                    db.add(scanner_data)
+                
+                success_count += 1
+                
+                # Log de progresso a cada 50 tickers
+                if idx % 50 == 0:
+                    logger.info(f"Progresso: {idx}/{len(all_tickers)} tickers processados ({success_count} sucesso, {error_count} erros)")
+                    db.commit()  # Commit periódico para não perder dados
+                
+                # Delay entre requisições para evitar rate limiting
+                time.sleep(delay_between_requests)
+                
+            except Exception as e:
+                error_count += 1
+                logger.warning(f"Erro ao processar ticker {ticker}: {e}")
+                # Continuar processamento mesmo se um ticker falhar
+                continue
+        
+        # Commit final
+        db.commit()
+        
+        logger.info(
+            f"Scan completo concluído! "
+            f"Total: {len(all_tickers)}, Sucesso: {success_count}, Erros: {error_count}"
+        )
+        
+        return f"Scan completo concluído. {success_count}/{len(all_tickers)} tickers processados com sucesso."
+
+    except Exception as e:
+        logger.error(f"Erro crítico no scan completo do mercado: {e}", exc_info=True)
+        db.rollback()
+        raise
+        
+    finally:
+        db.close()
+
+
+def run_full_market_scan(self):
+    """
+    Tarefa agendada para fazer scan completo do mercado B3.
+    Calcula indicadores técnicos (RSI, MACD, MM cruzamento) para todos os tickers
+    e salva na tabela scanner_data para consulta rápida pela API.
+    Roda toda madrugada às 3:00 AM.
+    """
+    try:
+        result = _run_full_market_scan_logic()
+        return result
+    except Exception as e:
+        # Retry apenas em caso de erro crítico (não para erros individuais de tickers)
+        raise self.retry(exc=e, countdown=3600, max_retries=2)
 

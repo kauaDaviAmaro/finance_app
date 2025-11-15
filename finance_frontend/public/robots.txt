@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /register
+Disallow: /login
+Disallow: /home
+Disallow: /market-analysis
+Disallow: /watchlist
+Disallow: /alerts
+Disallow: /portfolio
+Disallow: /scanner
+Disallow: /subscription
+Disallow: /profile
+Disallow: /support
+Disallow: /admin

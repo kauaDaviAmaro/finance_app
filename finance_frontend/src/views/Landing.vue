@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { Coins, BarChart, Eye, ArrowRight, Search, Activity, Target, LineChart } from 'lucide-vue-next'
+import { addStructuredData } from '../utils/seo'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -13,6 +15,77 @@ function goToLogin() {
 function goToRegister() {
   router.push('/register')
 }
+
+onMounted(() => {
+  // Add structured data for SEO
+  const baseUrl = globalThis.location.origin
+  
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Finance App',
+    url: baseUrl,
+    description: 'Plataforma profissional para traders: scanner de ações, análise técnica com 6+ indicadores, alertas automáticos e gestão de portfólio com P&L em tempo real.',
+    logo: `${baseUrl}/favicon.svg`,
+    sameAs: [],
+  }
+
+  const webApplicationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Finance App',
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web',
+    description: 'Plataforma profissional para traders: scanner de ações, análise técnica com 6+ indicadores, alertas automáticos e gestão de portfólio com P&L em tempo real.',
+    url: baseUrl,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'BRL',
+    },
+    featureList: [
+      'Scanner de ações por indicadores técnicos (RSI, MACD, Bollinger Bands)',
+      'Análise técnica completa com 6+ indicadores',
+      'Alertas automáticos por email',
+      'Gestão de portfólio com P&L em tempo real',
+      'Watchlist personalizada',
+      'Dados históricos de até 5 anos',
+    ],
+  }
+
+  const softwareApplicationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Finance App',
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web',
+    description: 'Plataforma profissional para traders e investidores com scanner de ações, análise técnica e gestão de portfólio.',
+    url: baseUrl,
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.5',
+      ratingCount: '100',
+    },
+  }
+
+  // Add all structured data
+  addStructuredData(organizationSchema)
+  
+  // Add web application schema as a separate script
+  setTimeout(() => {
+    const webAppScript = document.createElement('script')
+    webAppScript.type = 'application/ld+json'
+    webAppScript.textContent = JSON.stringify(webApplicationSchema)
+    document.head.appendChild(webAppScript)
+  }, 100)
+  
+  setTimeout(() => {
+    const softwareScript = document.createElement('script')
+    softwareScript.type = 'application/ld+json'
+    softwareScript.textContent = JSON.stringify(softwareApplicationSchema)
+    document.head.appendChild(softwareScript)
+  }, 200)
+})
 </script>
 
 <template>

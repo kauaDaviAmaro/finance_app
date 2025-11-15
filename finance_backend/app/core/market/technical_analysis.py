@@ -5,6 +5,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import pandas_ta as ta
+from typing import Optional, Literal
 
 from app.core.market.ticker_utils import format_ticker
 
@@ -127,4 +128,150 @@ def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
     except Exception as e:
         print(f"Erro ao buscar análise técnica do ticker {formatted_ticker}: {e}")
         raise
+
+
+def calculate_moving_averages(data: pd.DataFrame, mm9_period: int = 9, mm21_period: int = 21) -> pd.DataFrame:
+    """
+    Calcula médias móveis simples (MM9 e MM21) para um DataFrame de preços.
+    
+    Args:
+        data: DataFrame com coluna 'close'
+        mm9_period: Período da média móvel curta (padrão: 9)
+        mm21_period: Período da média móvel longa (padrão: 21)
+    
+    Returns:
+        DataFrame com colunas adicionais 'MM9' e 'MM21'
+    """
+    if data.empty or 'close' not in data.columns:
+        return data
+    
+    data = data.copy()
+    data['MM9'] = data['close'].rolling(window=mm9_period).mean()
+    data['MM21'] = data['close'].rolling(window=mm21_period).mean()
+    
+    return data
+
+
+def detect_moving_average_cross(data: pd.DataFrame, mm9_col: str = 'MM9', mm21_col: str = 'MM21') -> Optional[Literal['BULLISH', 'BEARISH', 'NEUTRAL']]:
+    """
+    Detecta o cruzamento de médias móveis (MM9 e MM21).
+    
+    Retorna:
+        - 'BULLISH': MM9 cruzou acima de MM21 (sinal de compra)
+        - 'BEARISH': MM9 cruzou abaixo de MM21 (sinal de venda)
+        - 'NEUTRAL': Sem cruzamento ou dados insuficientes
+    
+    Args:
+        data: DataFrame com colunas MM9 e MM21
+        mm9_col: Nome da coluna da média móvel curta
+        mm21_col: Nome da coluna da média móvel longa
+    
+    Returns:
+        String indicando o tipo de cruzamento ou None
+    """
+    if data.empty or mm9_col not in data.columns or mm21_col not in data.columns:
+        return 'NEUTRAL'
+    
+    # Pegar os últimos 2 valores válidos (não NaN) para detectar cruzamento
+    valid_data = data[[mm9_col, mm21_col]].dropna()
+    
+    if len(valid_data) < 2:
+        return 'NEUTRAL'
+    
+    # Últimos 2 valores
+    last_two = valid_data.tail(2)
+    
+    prev_mm9 = last_two.iloc[0][mm9_col]
+    prev_mm21 = last_two.iloc[0][mm21_col]
+    curr_mm9 = last_two.iloc[1][mm9_col]
+    curr_mm21 = last_two.iloc[1][mm21_col]
+    
+    # Detectar cruzamento
+    # BULLISH: MM9 estava abaixo e agora está acima de MM21
+    if prev_mm9 < prev_mm21 and curr_mm9 > curr_mm21:
+        return 'BULLISH'
+    
+    # BEARISH: MM9 estava acima e agora está abaixo de MM21
+    if prev_mm9 > prev_mm21 and curr_mm9 < curr_mm21:
+        return 'BEARISH'
+    
+    # Verificar posição atual (sem cruzamento recente)
+    if curr_mm9 > curr_mm21:
+        return 'BULLISH'  # MM9 acima de MM21 (tendência de alta)
+    elif curr_mm9 < curr_mm21:
+        return 'BEARISH'  # MM9 abaixo de MM21 (tendência de baixa)
+    else:
+        return 'NEUTRAL'  # MM9 igual a MM21
+
+
+def get_scanner_indicators(ticker: str, period: str = "1y") -> dict:
+    """
+    Calcula indicadores técnicos necessários para o scanner:
+    RSI_14, MACD signal, e cruzamento de médias móveis (MM9 x MM21).
+    
+    Args:
+        ticker: Ticker da ação (ex: 'PETR4')
+        period: Período de dados históricos (padrão: '1y')
+    
+    Returns:
+        Dicionário com:
+        - rsi_14: Valor do RSI(14) mais recente
+        - macd_signal: Valor do MACD signal mais recente
+        - mm_9_cruza_mm_21: 'BULLISH', 'BEARISH' ou 'NEUTRAL'
+    """
+    formatted_ticker = format_ticker(ticker)
+    
+    try:
+        stock = yf.Ticker(formatted_ticker)
+        data: pd.DataFrame = stock.history(period=period)
+        
+        if data.empty:
+            return {
+                'rsi_14': None,
+                'macd_signal': None,
+                'mm_9_cruza_mm_21': 'NEUTRAL'
+            }
+        
+        data.reset_index(inplace=True)
+        data.rename(columns={
+            'Date': 'date',
+            'Close': 'close',
+            'Volume': 'volume'
+        }, inplace=True)
+        
+        # Calcular RSI
+        rsi_14 = None
+        try:
+            rsi = ta.rsi(data['close'], length=14)
+            if rsi is not None and not rsi.empty:
+                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular MACD
+        macd_signal = None
+        try:
+            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
+            if macd is not None and not macd.empty and 'MACDs_12_26_9' in macd.columns:
+                macd_signal = float(macd['MACDs_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDs_12_26_9'].iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular médias móveis e detectar cruzamento
+        data_with_ma = calculate_moving_averages(data)
+        mm_cross = detect_moving_average_cross(data_with_ma)
+        
+        return {
+            'rsi_14': rsi_14,
+            'macd_signal': macd_signal,
+            'mm_9_cruza_mm_21': mm_cross or 'NEUTRAL'
+        }
+        
+    except Exception as e:
+        print(f"Erro ao calcular indicadores do scanner para {formatted_ticker}: {e}")
+        return {
+            'rsi_14': None,
+            'macd_signal': None,
+            'mm_9_cruza_mm_21': 'NEUTRAL'
+        }
 

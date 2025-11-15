@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/subscription", tags=["Subscription"])
 
 # Configurar Stripe
-if settings.STRIPE_SECRET_KEY:
+if hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY:
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
@@ -39,7 +39,7 @@ def create_checkout_session(
     """
     Cria uma sessão de checkout do Stripe para o usuário atual.
     """
-    if not settings.STRIPE_SECRET_KEY or not settings.STRIPE_PRICE_ID_PRO:
+    if not hasattr(settings, 'STRIPE_SECRET_KEY') or not settings.STRIPE_SECRET_KEY or not hasattr(settings, 'STRIPE_PRICE_ID_PRO') or not settings.STRIPE_PRICE_ID_PRO:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Stripe não configurado corretamente"
@@ -126,7 +126,7 @@ def create_portal_session(
     O cancelamento real é feito pelo usuário no portal do Stripe, que então
     dispara um webhook que atualiza o status no banco de dados.
     """
-    if not settings.STRIPE_SECRET_KEY:
+    if not hasattr(settings, 'STRIPE_SECRET_KEY') or not settings.STRIPE_SECRET_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Stripe não configurado corretamente"

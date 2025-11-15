@@ -79,3 +79,4 @@ def create_notification(
             # Não falha a criação da notificação se o push falhar
     
     return notification
+

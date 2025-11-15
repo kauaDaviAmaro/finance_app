@@ -2,6 +2,9 @@
 Utilitários para formatação e validação de tickers.
 """
 import re
+import json
+from pathlib import Path
+from typing import List
 
 
 def format_ticker(ticker: str) -> str:
@@ -43,3 +46,30 @@ IBOV_TICKERS = [
     # Locação e serviços
     "RENT3", "LCAM3",
 ]
+
+
+def get_all_b3_tickers() -> List[str]:
+    """
+    Lê a lista completa de tickers B3 do arquivo JSON estático local.
+    Retorna uma lista de strings com os tickers (ex: ['PETR4', 'VALE3', ...]).
+    Sem dependência externa - arquivo estático versionado.
+    """
+    # Caminho relativo ao arquivo atual
+    current_dir = Path(__file__).parent
+    json_path = current_dir / "static" / "b3_stocks_tickers.json"
+    
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Extrair apenas os tickers da lista de dicionários
+            tickers = [item['ticker'] for item in data if 'ticker' in item]
+            return tickers
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Arquivo de tickers B3 não encontrado em {json_path}. "
+            "Certifique-se de que o arquivo b3_stocks_tickers.json está em app/core/market/static/"
+        )
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Erro ao decodificar JSON de tickers B3: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Erro ao ler arquivo de tickers B3: {e}")

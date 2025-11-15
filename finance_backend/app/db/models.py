@@ -144,6 +144,23 @@ class DailyScanResult(Base):
         )
 
 
+class ScannerData(Base):
+    __tablename__ = "scanner_data"
+    
+    ticker = Column(String(20), primary_key=True, index=True)
+    rsi_14 = Column(Numeric(9, 4), nullable=True)
+    macd_signal = Column(Numeric(9, 4), nullable=True)
+    mm_9_cruza_mm_21 = Column(String(20), nullable=True)  # 'BULLISH', 'BEARISH', 'NEUTRAL'
+    last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return (
+            f"<ScannerData(ticker='{self.ticker}', rsi_14={self.rsi_14}, "
+            f"macd_signal={self.macd_signal}, mm_9_cruza_mm_21='{self.mm_9_cruza_mm_21}', "
+            f"last_updated={self.last_updated})>"
+        )
+
+
 class SupportMessage(Base):
     __tablename__ = "support_messages"
     

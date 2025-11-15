@@ -1,0 +1,1586 @@
+[
+    {
+        "ticker": "AALR",
+        "name": "ALLIAR"
+    },
+    {
+        "ticker": "ABCB",
+        "name": "ABC BRASIL"
+    },
+    {
+        "ticker": "ABEV",
+        "name": "AMBEV S/A"
+    },
+    {
+        "ticker": "AERI",
+        "name": "AERIS"
+    },
+    {
+        "ticker": "AESB",
+        "name": "AES BRASIL"
+    },
+    {
+        "ticker": "AFLT",
+        "name": "AFLUENTE T"
+    },
+    {
+        "ticker": "AGRO",
+        "name": "BRASILAGRO"
+    },
+    {
+        "ticker": "AGXY",
+        "name": "AGROGALAXY"
+    },
+    {
+        "ticker": "AHEB",
+        "name": "SPTURIS"
+    },
+    {
+        "ticker": "ALLD",
+        "name": "ALLIED"
+    },
+    {
+        "ticker": "ALOS",
+        "name": "ALLOS"
+    },
+    {
+        "ticker": "ALPA",
+        "name": "ALPARGATAS"
+    },
+    {
+        "ticker": "ALPK",
+        "name": "ESTAPAR"
+    },
+    {
+        "ticker": "ALUP",
+        "name": "ALUPAR"
+    },
+    {
+        "ticker": "AMAR",
+        "name": "LOJAS MARISA"
+    },
+    {
+        "ticker": "AMBP",
+        "name": "AMBIPAR"
+    },
+    {
+        "ticker": "AMER",
+        "name": "AMERICANAS"
+    },
+    {
+        "ticker": "ANIM",
+        "name": "ANIMA"
+    },
+    {
+        "ticker": "APER",
+        "name": "ALPER S.A."
+    },
+    {
+        "ticker": "APTI",
+        "name": "ALIPERTI"
+    },
+    {
+        "ticker": "ARML",
+        "name": "ARMAC"
+    },
+    {
+        "ticker": "ARZZ",
+        "name": "AREZZO CO"
+    },
+    {
+        "ticker": "ASAI",
+        "name": "ASSAI"
+    },
+    {
+        "ticker": "ATMP",
+        "name": "ATMASA"
+    },
+    {
+        "ticker": "ATOM",
+        "name": "ATOMPAR"
+    },
+    {
+        "ticker": "AURE",
+        "name": "AUREN"
+    },
+    {
+        "ticker": "AVLL",
+        "name": "ALPHAVILLE"
+    },
+    {
+        "ticker": "AZEV",
+        "name": "AZEVEDO"
+    },
+    {
+        "ticker": "AZUL",
+        "name": "AZUL"
+    },
+    {
+        "ticker": "B3SA",
+        "name": "B3"
+    },
+    {
+        "ticker": "BAHI",
+        "name": "BAHEMA"
+    },
+    {
+        "ticker": "BALM",
+        "name": "BAUMER"
+    },
+    {
+        "ticker": "BAUH",
+        "name": "EXCELSIOR"
+    },
+    {
+        "ticker": "BAZA",
+        "name": "AMAZONIA"
+    },
+    {
+        "ticker": "BBAS",
+        "name": "BRASIL"
+    },
+    {
+        "ticker": "BBDC",
+        "name": "BRADESCO"
+    },
+    {
+        "ticker": "BBML",
+        "name": "BBMLOGISTICA"
+    },
+    {
+        "ticker": "BBRK",
+        "name": "NEXPE"
+    },
+    {
+        "ticker": "BBSE",
+        "name": "BBSEGURIDADE"
+    },
+    {
+        "ticker": "BDLL",
+        "name": "BARDELLA"
+    },
+    {
+        "ticker": "BEEF",
+        "name": "MINERVA"
+    },
+    {
+        "ticker": "BEES",
+        "name": "BANESTES"
+    },
+    {
+        "ticker": "BGIP",
+        "name": "BANESE"
+    },
+    {
+        "ticker": "BHIA",
+        "name": "CASAS BAHIA"
+    },
+    {
+        "ticker": "BIDI",
+        "name": "BANCO INTER"
+    },
+    {
+        "ticker": "BIOM",
+        "name": "BIOMM"
+    },
+    {
+        "ticker": "BLAU",
+        "name": "BLAU"
+    },
+    {
+        "ticker": "BLUT",
+        "name": "B TECH EQI"
+    },
+    {
+        "ticker": "BMEB",
+        "name": "MERCANTIL"
+    },
+    {
+        "ticker": "BMGB",
+        "name": "BANCO BMG"
+    },
+    {
+        "ticker": "BMIN",
+        "name": "MERC INVEST"
+    },
+    {
+        "ticker": "BMKS",
+        "name": "BIC MONARK"
+    },
+    {
+        "ticker": "BMOB",
+        "name": "BEMOBI TECH"
+    },
+    {
+        "ticker": "BNBR",
+        "name": "NORD BRASIL"
+    },
+    {
+        "ticker": "BOAS",
+        "name": "BOA VISTA"
+    },
+    {
+        "ticker": "BOBR",
+        "name": "BOMBRIL"
+    },
+    {
+        "ticker": "BPAC",
+        "name": "BTGP BANCO"
+    },
+    {
+        "ticker": "BPAN",
+        "name": "BANCO PAN"
+    },
+    {
+        "ticker": "BPAR",
+        "name": "BANPARA"
+    },
+    {
+        "ticker": "BRAP",
+        "name": "BRADESPAR"
+    },
+    {
+        "ticker": "BRBI",
+        "name": "BR PARTNERS"
+    },
+    {
+        "ticker": "BRFS",
+        "name": "BRF SA"
+    },
+    {
+        "ticker": "BRGE",
+        "name": "ALFA CONSORC"
+    },
+    {
+        "ticker": "BRIT",
+        "name": "BRISANET"
+    },
+    {
+        "ticker": "BRIV",
+        "name": "ALFA INVEST"
+    },
+    {
+        "ticker": "BRKM",
+        "name": "BRASKEM"
+    },
+    {
+        "ticker": "BRML",
+        "name": "BR MALLS PAR"
+    },
+    {
+        "ticker": "BRPR",
+        "name": "BR PROPERT"
+    },
+    {
+        "ticker": "BRQB",
+        "name": "BRQ"
+    },
+    {
+        "ticker": "BRSR",
+        "name": "BANRISUL"
+    },
+    {
+        "ticker": "BSLI",
+        "name": "BRB BANCO"
+    },
+    {
+        "ticker": "CACO",
+        "name": "CACONDE PART"
+    },
+    {
+        "ticker": "CALI",
+        "name": "CONST A LIND"
+    },
+    {
+        "ticker": "CAMB",
+        "name": "CAMBUCI"
+    },
+    {
+        "ticker": "CAML",
+        "name": "CAMIL"
+    },
+    {
+        "ticker": "CASH",
+        "name": "MELIUZ"
+    },
+    {
+        "ticker": "CASN",
+        "name": "CASAN"
+    },
+    {
+        "ticker": "CATA",
+        "name": "IND CATAGUAS"
+    },
+    {
+        "ticker": "CBAV",
+        "name": "CBA"
+    },
+    {
+        "ticker": "CBEE",
+        "name": "AMPLA ENERG"
+    },
+    {
+        "ticker": "CCRO",
+        "name": "CCR SA"
+    },
+    {
+        "ticker": "CEAB",
+        "name": "CEA MODAS"
+    },
+    {
+        "ticker": "CEBR",
+        "name": "CEB"
+    },
+    {
+        "ticker": "CEDO",
+        "name": "CEDRO"
+    },
+    {
+        "ticker": "CEEB",
+        "name": "COELBA"
+    },
+    {
+        "ticker": "CEED",
+        "name": "CEEE-D"
+    },
+    {
+        "ticker": "CEGR",
+        "name": "CEG"
+    },
+    {
+        "ticker": "CEPE",
+        "name": "CELPE"
+    },
+    {
+        "ticker": "CESP",
+        "name": "CESP"
+    },
+    {
+        "ticker": "CGAS",
+        "name": "COMGAS"
+    },
+    {
+        "ticker": "CGRA",
+        "name": "GRAZZIOTIN"
+    },
+    {
+        "ticker": "CIEL",
+        "name": "CIELO"
+    },
+    {
+        "ticker": "CLSA",
+        "name": "CLEARSALE"
+    },
+    {
+        "ticker": "CLSC",
+        "name": "CELESC"
+    },
+    {
+        "ticker": "CMIG",
+        "name": "CEMIG"
+    },
+    {
+        "ticker": "CMIN",
+        "name": "CSNMINERACAO"
+    },
+    {
+        "ticker": "CMSA",
+        "name": "CIMS"
+    },
+    {
+        "ticker": "CNSY",
+        "name": "CINESYSTEM"
+    },
+    {
+        "ticker": "COCE",
+        "name": "COELCE"
+    },
+    {
+        "ticker": "COGN",
+        "name": "COGNA ON"
+    },
+    {
+        "ticker": "CORR",
+        "name": "COR RIBEIRO"
+    },
+    {
+        "ticker": "CPFE",
+        "name": "CPFL ENERGIA"
+    },
+    {
+        "ticker": "CPLE",
+        "name": "COPEL"
+    },
+    {
+        "ticker": "CPRE",
+        "name": "CPFL RENOVAV"
+    },
+    {
+        "ticker": "CRDE",
+        "name": "FICA"
+    },
+    {
+        "ticker": "CRFB",
+        "name": "CARREFOUR BR"
+    },
+    {
+        "ticker": "CRIV",
+        "name": "ALFA FINANC"
+    },
+    {
+        "ticker": "CRPG",
+        "name": "CRISTAL"
+    },
+    {
+        "ticker": "CSAB",
+        "name": "SEG AL BAHIA"
+    },
+    {
+        "ticker": "CSAN",
+        "name": "COSAN"
+    },
+    {
+        "ticker": "CSED",
+        "name": "CRUZEIRO EDU"
+    },
+    {
+        "ticker": "CSMG",
+        "name": "COPASA"
+    },
+    {
+        "ticker": "CSNA",
+        "name": "SID NACIONAL"
+    },
+    {
+        "ticker": "CSRN",
+        "name": "COSERN"
+    },
+    {
+        "ticker": "CSUD",
+        "name": "CSU DIGITAL"
+    },
+    {
+        "ticker": "CTCA",
+        "name": "CTC S.A."
+    },
+    {
+        "ticker": "CTKA",
+        "name": "KARSTEN"
+    },
+    {
+        "ticker": "CTNM",
+        "name": "COTEMINAS"
+    },
+    {
+        "ticker": "CTSA",
+        "name": "SANTANENSE"
+    },
+    {
+        "ticker": "CURY",
+        "name": "CURY S/A"
+    },
+    {
+        "ticker": "CVCB",
+        "name": "CVC BRASIL"
+    },
+    {
+        "ticker": "CXSE",
+        "name": "CAIXA SEGURI"
+    },
+    {
+        "ticker": "CYRE",
+        "name": "CYRELA REALT"
+    },
+    {
+        "ticker": "DASA",
+        "name": "DASA"
+    },
+    {
+        "ticker": "DESK",
+        "name": "DESKTOP"
+    },
+    {
+        "ticker": "DEXP",
+        "name": "DEXXOS PAR"
+    },
+    {
+        "ticker": "DIRR",
+        "name": "DIRECIONAL"
+    },
+    {
+        "ticker": "DMMO",
+        "name": "DOMMO"
+    },
+    {
+        "ticker": "DMVF",
+        "name": "D1000VFARMA"
+    },
+    {
+        "ticker": "DOHL",
+        "name": "DOHLER"
+    },
+    {
+        "ticker": "DOTZ",
+        "name": "DOTZ SA"
+    },
+    {
+        "ticker": "DTCY",
+        "name": "DTCOM-DIRECT"
+    },
+    {
+        "ticker": "DXCO",
+        "name": "DEXCO"
+    },
+    {
+        "ticker": "EALT",
+        "name": "ACO ALTONA"
+    },
+    {
+        "ticker": "ECOR",
+        "name": "ECORODOVIAS"
+    },
+    {
+        "ticker": "ECPR",
+        "name": "ENCORPAR"
+    },
+    {
+        "ticker": "EEEL",
+        "name": "CEEE-T"
+    },
+    {
+        "ticker": "EGIE",
+        "name": "ENGIE BRASIL"
+    },
+    {
+        "ticker": "EKTR",
+        "name": "ELEKTRO"
+    },
+    {
+        "ticker": "ELET",
+        "name": "ELETROBRAS"
+    },
+    {
+        "ticker": "ELMD",
+        "name": "ELETROMIDIA"
+    },
+    {
+        "ticker": "ELPL",
+        "name": "ELETROPAULO"
+    },
+    {
+        "ticker": "EMAE",
+        "name": "EMAE"
+    },
+    {
+        "ticker": "EMBR",
+        "name": "EMBRAER"
+    },
+    {
+        "ticker": "ENAT",
+        "name": "ENAUTA PART"
+    },
+    {
+        "ticker": "ENBR",
+        "name": "ENERGIAS BR"
+    },
+    {
+        "ticker": "ENEV",
+        "name": "ENEVA"
+    },
+    {
+        "ticker": "ENGI",
+        "name": "ENERGISA"
+    },
+    {
+        "ticker": "ENJU",
+        "name": "ENJOEI"
+    },
+    {
+        "ticker": "ENMA",
+        "name": "EQTLMARANHAO"
+    },
+    {
+        "ticker": "ENMT",
+        "name": "ENERGISA MT"
+    },
+    {
+        "ticker": "EPAR",
+        "name": "EMBPAR S/A"
+    },
+    {
+        "ticker": "EQPA",
+        "name": "EQTL PARA"
+    },
+    {
+        "ticker": "EQTL",
+        "name": "EQUATORIAL"
+    },
+    {
+        "ticker": "ESPA",
+        "name": "ESPACOLASER"
+    },
+    {
+        "ticker": "ESTR",
+        "name": "ESTRELA"
+    },
+    {
+        "ticker": "ETER",
+        "name": "ETERNIT"
+    },
+    {
+        "ticker": "EUCA",
+        "name": "EUCATEX"
+    },
+    {
+        "ticker": "EVEN",
+        "name": "EVEN"
+    },
+    {
+        "ticker": "EZTC",
+        "name": "EZTEC"
+    },
+    {
+        "ticker": "FESA",
+        "name": "FERBASA"
+    },
+    {
+        "ticker": "FHER",
+        "name": "FER HERINGER"
+    },
+    {
+        "ticker": "FIGE",
+        "name": "INVEST BEMGE"
+    },
+    {
+        "ticker": "FIQE",
+        "name": "UNIFIQUE"
+    },
+    {
+        "ticker": "FLRY",
+        "name": "FLEURY"
+    },
+    {
+        "ticker": "FNCN",
+        "name": "DMFINANCEIRA"
+    },
+    {
+        "ticker": "FRAS",
+        "name": "FRAS-LE"
+    },
+    {
+        "ticker": "FRIO",
+        "name": "METALFRIO"
+    },
+    {
+        "ticker": "FRRN",
+        "name": "ALL NORTE"
+    },
+    {
+        "ticker": "FRTA",
+        "name": "POMIFRUTAS"
+    },
+    {
+        "ticker": "GEPA",
+        "name": "GER PARANAP"
+    },
+    {
+        "ticker": "GETT",
+        "name": "GETNET BR"
+    },
+    {
+        "ticker": "GFSA",
+        "name": "GAFISA"
+    },
+    {
+        "ticker": "GGBR",
+        "name": "GERDAU"
+    },
+    {
+        "ticker": "GGPS",
+        "name": "GPS"
+    },
+    {
+        "ticker": "GMAT",
+        "name": "GRUPO MATEUS"
+    },
+    {
+        "ticker": "GNDI",
+        "name": "INTERMEDICA"
+    },
+    {
+        "ticker": "GOAU",
+        "name": "GERDAU MET"
+    },
+    {
+        "ticker": "GOLL",
+        "name": "GOL"
+    },
+    {
+        "ticker": "GPAR",
+        "name": "CELGPAR"
+    },
+    {
+        "ticker": "GPIV",
+        "name": "GP INVEST"
+    },
+    {
+        "ticker": "GRND",
+        "name": "GRENDENE"
+    },
+    {
+        "ticker": "GSHP",
+        "name": "GENERALSHOPP"
+    },
+    {
+        "ticker": "GUAR",
+        "name": "GUARARAPES"
+    },
+    {
+        "ticker": "HAGA",
+        "name": "HAGA S/A"
+    },
+    {
+        "ticker": "HAPV",
+        "name": "HAPVIDA"
+    },
+    {
+        "ticker": "HBOR",
+        "name": "HELBOR"
+    },
+    {
+        "ticker": "HBRE",
+        "name": "HBR REALTY"
+    },
+    {
+        "ticker": "HBSA",
+        "name": "HIDROVIAS"
+    },
+    {
+        "ticker": "HBTS",
+        "name": "HABITASUL"
+    },
+    {
+        "ticker": "HETA",
+        "name": "HERCULES"
+    },
+    {
+        "ticker": "HOOT",
+        "name": "HOTEIS OTHON"
+    },
+    {
+        "ticker": "HYPE",
+        "name": "HYPERA"
+    },
+    {
+        "ticker": "IFCM",
+        "name": "INFRACOMM"
+    },
+    {
+        "ticker": "IGBR",
+        "name": "IGB S/A"
+    },
+    {
+        "ticker": "IGSN",
+        "name": "IGUA SA"
+    },
+    {
+        "ticker": "IGTA",
+        "name": "IGUATEMI"
+    },
+    {
+        "ticker": "IGTI",
+        "name": "IGUATEMI S.A"
+    },
+    {
+        "ticker": "INEP",
+        "name": "INEPAR"
+    },
+    {
+        "ticker": "INTB",
+        "name": "INTELBRAS"
+    },
+    {
+        "ticker": "IRBR",
+        "name": "IRBBRASIL RE"
+    },
+    {
+        "ticker": "ITSA",
+        "name": "ITAUSA"
+    },
+    {
+        "ticker": "ITUB",
+        "name": "ITAUUNIBANCO"
+    },
+    {
+        "ticker": "IVPR",
+        "name": "INVEPAR"
+    },
+    {
+        "ticker": "JALL",
+        "name": "JALLESMACHAD"
+    },
+    {
+        "ticker": "JBDU",
+        "name": "B TECH EQI"
+    },
+    {
+        "ticker": "JBSS",
+        "name": "JBS"
+    },
+    {
+        "ticker": "JFEN",
+        "name": "JOAO FORTES"
+    },
+    {
+        "ticker": "JHSF",
+        "name": "JHSF PART"
+    },
+    {
+        "ticker": "JOPA",
+        "name": "JOSAPAR"
+    },
+    {
+        "ticker": "JPSA",
+        "name": "IGUATEMI S.A"
+    },
+    {
+        "ticker": "JSLG",
+        "name": "JSL"
+    },
+    {
+        "ticker": "KEPL",
+        "name": "KEPLER WEBER"
+    },
+    {
+        "ticker": "KLBN",
+        "name": "KLABIN S/A"
+    },
+    {
+        "ticker": "KRSA",
+        "name": "KORA SAUDE"
+    },
+    {
+        "ticker": "LAND",
+        "name": "TERRASANTAPA"
+    },
+    {
+        "ticker": "LAVV",
+        "name": "LAVVI"
+    },
+    {
+        "ticker": "LCAM",
+        "name": "LOCAMERICA"
+    },
+    {
+        "ticker": "LEVE",
+        "name": "METAL LEVE"
+    },
+    {
+        "ticker": "LIGT",
+        "name": "LIGHT S/A"
+    },
+    {
+        "ticker": "LIPR",
+        "name": "ELETROPAR"
+    },
+    {
+        "ticker": "LJQQ",
+        "name": "QUERO-QUERO"
+    },
+    {
+        "ticker": "LOGG",
+        "name": "LOG COM PROP"
+    },
+    {
+        "ticker": "LOGN",
+        "name": "LOG-IN"
+    },
+    {
+        "ticker": "LPSB",
+        "name": "LOPES BRASIL"
+    },
+    {
+        "ticker": "LREN",
+        "name": "LOJAS RENNER"
+    },
+    {
+        "ticker": "LUPA",
+        "name": "LUPATECH"
+    },
+    {
+        "ticker": "LUXM",
+        "name": "TREVISA"
+    },
+    {
+        "ticker": "LVTC",
+        "name": "WDC NETWORKS"
+    },
+    {
+        "ticker": "LWSA",
+        "name": "LWSA"
+    },
+    {
+        "ticker": "MAPT",
+        "name": "CEMEPE"
+    },
+    {
+        "ticker": "MATD",
+        "name": "MATER DEI"
+    },
+    {
+        "ticker": "MBLY",
+        "name": "MOBLY"
+    },
+    {
+        "ticker": "MDIA",
+        "name": "M.DIASBRANCO"
+    },
+    {
+        "ticker": "MDNE",
+        "name": "MOURA DUBEUX"
+    },
+    {
+        "ticker": "MEAL",
+        "name": "IMC S/A"
+    },
+    {
+        "ticker": "MELK",
+        "name": "MELNICK"
+    },
+    {
+        "ticker": "MEND",
+        "name": "MENDES JR"
+    },
+    {
+        "ticker": "MERC",
+        "name": "MERC FINANC"
+    },
+    {
+        "ticker": "MGEL",
+        "name": "MANGELS INDL"
+    },
+    {
+        "ticker": "MGLU",
+        "name": "MAGAZ LUIZA"
+    },
+    {
+        "ticker": "MILS",
+        "name": "MILLS"
+    },
+    {
+        "ticker": "MLAS",
+        "name": "MULTILASER"
+    },
+    {
+        "ticker": "MMAQ",
+        "name": "MINASMAQUINA"
+    },
+    {
+        "ticker": "MMXM",
+        "name": "MMX MINER"
+    },
+    {
+        "ticker": "MNDL",
+        "name": "MUNDIAL"
+    },
+    {
+        "ticker": "MNPR",
+        "name": "MINUPAR"
+    },
+    {
+        "ticker": "MNZC",
+        "name": "MENEZES CORT"
+    },
+    {
+        "ticker": "MOAR",
+        "name": "MONT ARANHA"
+    },
+    {
+        "ticker": "MODL",
+        "name": "MODALMAIS"
+    },
+    {
+        "ticker": "MOSI",
+        "name": "MOSAICO"
+    },
+    {
+        "ticker": "MOVI",
+        "name": "MOVIDA"
+    },
+    {
+        "ticker": "MRFG",
+        "name": "MARFRIG"
+    },
+    {
+        "ticker": "MRSA",
+        "name": "MRS LOGIST"
+    },
+    {
+        "ticker": "MRVE",
+        "name": "MRV"
+    },
+    {
+        "ticker": "MSPA",
+        "name": "MELHOR SP"
+    },
+    {
+        "ticker": "MSRO",
+        "name": "MAESTROLOC"
+    },
+    {
+        "ticker": "MTIG",
+        "name": "METAL IGUACU"
+    },
+    {
+        "ticker": "MTRE",
+        "name": "MITRE REALTY"
+    },
+    {
+        "ticker": "MTSA",
+        "name": "METISA"
+    },
+    {
+        "ticker": "MULT",
+        "name": "MULTIPLAN"
+    },
+    {
+        "ticker": "MWET",
+        "name": "WETZEL S/A"
+    },
+    {
+        "ticker": "MYPK",
+        "name": "IOCHP-MAXION"
+    },
+    {
+        "ticker": "NEMO",
+        "name": "SUZANO HOLD"
+    },
+    {
+        "ticker": "NEOE",
+        "name": "NEOENERGIA"
+    },
+    {
+        "ticker": "NGRD",
+        "name": "NEOGRID"
+    },
+    {
+        "ticker": "NINJ",
+        "name": "GETNINJAS"
+    },
+    {
+        "ticker": "NORD",
+        "name": "NORDON MET"
+    },
+    {
+        "ticker": "NRTQ",
+        "name": "NORTCQUIMICA"
+    },
+    {
+        "ticker": "NTCO",
+        "name": "GRUPO NATURA"
+    },
+    {
+        "ticker": "NUTR",
+        "name": "NUTRIPLANT"
+    },
+    {
+        "ticker": "ODER",
+        "name": "ODERICH"
+    },
+    {
+        "ticker": "ODPV",
+        "name": "ODONTOPREV"
+    },
+    {
+        "ticker": "OFSA",
+        "name": "OUROFINO S/A"
+    },
+    {
+        "ticker": "OIBR",
+        "name": "OI"
+    },
+    {
+        "ticker": "ONCO",
+        "name": "ONCOCLINICAS"
+    },
+    {
+        "ticker": "OPCT",
+        "name": "OCEANPACT"
+    },
+    {
+        "ticker": "OPHE",
+        "name": "OPPORT ENERG"
+    },
+    {
+        "ticker": "ORVR",
+        "name": "ORIZON"
+    },
+    {
+        "ticker": "OSXB",
+        "name": "OSX BRASIL"
+    },
+    {
+        "ticker": "PARD",
+        "name": "IHPARDINI"
+    },
+    {
+        "ticker": "PATI",
+        "name": "PANATLANTICA"
+    },
+    {
+        "ticker": "PCAR",
+        "name": "P.ACUCAR-CBD"
+    },
+    {
+        "ticker": "PDGR",
+        "name": "PDG REALT"
+    },
+    {
+        "ticker": "PDTC",
+        "name": "PADTEC"
+    },
+    {
+        "ticker": "PEAB",
+        "name": "PAR AL BAHIA"
+    },
+    {
+        "ticker": "PETR",
+        "name": "PETROBRAS"
+    },
+    {
+        "ticker": "PETZ",
+        "name": "PETZ"
+    },
+    {
+        "ticker": "PFRM",
+        "name": "PROFARMA"
+    },
+    {
+        "ticker": "PGMN",
+        "name": "PAGUE MENOS"
+    },
+    {
+        "ticker": "PINE",
+        "name": "PINE"
+    },
+    {
+        "ticker": "PLAS",
+        "name": "PLASCAR PART"
+    },
+    {
+        "ticker": "PLPL",
+        "name": "PLANOEPLANO"
+    },
+    {
+        "ticker": "PMAM",
+        "name": "PARANAPANEMA"
+    },
+    {
+        "ticker": "PNVL",
+        "name": "DIMED"
+    },
+    {
+        "ticker": "POMO",
+        "name": "MARCOPOLO"
+    },
+    {
+        "ticker": "PORT",
+        "name": "WILSON SONS"
+    },
+    {
+        "ticker": "POSI",
+        "name": "POSITIVO TEC"
+    },
+    {
+        "ticker": "POWE",
+        "name": "FOCUS ON"
+    },
+    {
+        "ticker": "PPAR",
+        "name": "POLPAR"
+    },
+    {
+        "ticker": "PPLA",
+        "name": "PPLA"
+    },
+    {
+        "ticker": "PRIO",
+        "name": "PETRORIO"
+    },
+    {
+        "ticker": "PRNR",
+        "name": "PRINER"
+    },
+    {
+        "ticker": "PSSA",
+        "name": "PORTO SEGURO"
+    },
+    {
+        "ticker": "PTBL",
+        "name": "PORTOBELLO"
+    },
+    {
+        "ticker": "PTNT",
+        "name": "PETTENATI"
+    },
+    {
+        "ticker": "QUAL",
+        "name": "QUALICORP"
+    },
+    {
+        "ticker": "QUSW",
+        "name": "QUALITY SOFT"
+    },
+    {
+        "ticker": "RADL",
+        "name": "RAIADROGASIL"
+    },
+    {
+        "ticker": "RAIL",
+        "name": "RUMO S.A."
+    },
+    {
+        "ticker": "RAIZ",
+        "name": "RAIZEN"
+    },
+    {
+        "ticker": "RANI",
+        "name": "IRANI"
+    },
+    {
+        "ticker": "RAPT",
+        "name": "RANDON PART"
+    },
+    {
+        "ticker": "RCSL",
+        "name": "RECRUSUL"
+    },
+    {
+        "ticker": "RDNI",
+        "name": "RNI"
+    },
+    {
+        "ticker": "RDOR",
+        "name": "REDE D OR"
+    },
+    {
+        "ticker": "RECV",
+        "name": "PETRORECSA"
+    },
+    {
+        "ticker": "REDE",
+        "name": "REDE ENERGIA"
+    },
+    {
+        "ticker": "RENT",
+        "name": "LOCALIZA"
+    },
+    {
+        "ticker": "RNEW",
+        "name": "RENOVA"
+    },
+    {
+        "ticker": "ROMI",
+        "name": "ROMI"
+    },
+    {
+        "ticker": "RPAD",
+        "name": "ALFA HOLDING"
+    },
+    {
+        "ticker": "RPMG",
+        "name": "PET MANGUINH"
+    },
+    {
+        "ticker": "RSID",
+        "name": "ROSSI RESID"
+    },
+    {
+        "ticker": "RSUL",
+        "name": "RIOSULENSE"
+    },
+    {
+        "ticker": "SANB",
+        "name": "SANTANDER BR"
+    },
+    {
+        "ticker": "SAPR",
+        "name": "SANEPAR"
+    },
+    {
+        "ticker": "SBFG",
+        "name": "GRUPO SBF"
+    },
+    {
+        "ticker": "SBSP",
+        "name": "SABESP"
+    },
+    {
+        "ticker": "SCAR",
+        "name": "SAO CARLOS"
+    },
+    {
+        "ticker": "SEER",
+        "name": "SER EDUCA"
+    },
+    {
+        "ticker": "SEQL",
+        "name": "SEQUOIA LOG"
+    },
+    {
+        "ticker": "SGPS",
+        "name": "SPRINGS"
+    },
+    {
+        "ticker": "SHOW",
+        "name": "TIME FOR FUN"
+    },
+    {
+        "ticker": "SHUL",
+        "name": "SCHULZ"
+    },
+    {
+        "ticker": "SIMH",
+        "name": "SIMPAR"
+    },
+    {
+        "ticker": "SLCE",
+        "name": "SLC AGRICOLA"
+    },
+    {
+        "ticker": "SLED",
+        "name": "SARAIVA LIVR"
+    },
+    {
+        "ticker": "SMFT",
+        "name": "SMART FIT"
+    },
+    {
+        "ticker": "SMLS",
+        "name": "SMILES"
+    },
+    {
+        "ticker": "SMTO",
+        "name": "SAO MARTINHO"
+    },
+    {
+        "ticker": "SNSY",
+        "name": "SANSUY"
+    },
+    {
+        "ticker": "SOJA",
+        "name": "BOA SAFRA"
+    },
+    {
+        "ticker": "SOMA",
+        "name": "GRUPO SOMA"
+    },
+    {
+        "ticker": "SOND",
+        "name": "SONDOTECNICA"
+    },
+    {
+        "ticker": "SQIA",
+        "name": "SINQIA"
+    },
+    {
+        "ticker": "SRNA",
+        "name": "SERENA"
+    },
+    {
+        "ticker": "STBP",
+        "name": "SANTOS BRP"
+    },
+    {
+        "ticker": "STKF",
+        "name": "STATKRAFT"
+    },
+    {
+        "ticker": "SULA",
+        "name": "SUL AMERICA"
+    },
+    {
+        "ticker": "SUZB",
+        "name": "SUZANO S.A."
+    },
+    {
+        "ticker": "SYNE",
+        "name": "SYN PROP TEC"
+    },
+    {
+        "ticker": "TAEE",
+        "name": "TAESA"
+    },
+    {
+        "ticker": "TASA",
+        "name": "TAURUS ARMAS"
+    },
+    {
+        "ticker": "TCNO",
+        "name": "TECNOSOLO"
+    },
+    {
+        "ticker": "TCSA",
+        "name": "TECNISA"
+    },
+    {
+        "ticker": "TECN",
+        "name": "TECHNOS"
+    },
+    {
+        "ticker": "TEGA",
+        "name": "TEGRA INCORP"
+    },
+    {
+        "ticker": "TELB",
+        "name": "TELEBRAS"
+    },
+    {
+        "ticker": "TEND",
+        "name": "TENDA"
+    },
+    {
+        "ticker": "TESA",
+        "name": "TERRA SANTA"
+    },
+    {
+        "ticker": "TFCO",
+        "name": "TRACK FIELD"
+    },
+    {
+        "ticker": "TGMA",
+        "name": "TEGMA"
+    },
+    {
+        "ticker": "TIMS",
+        "name": "TIM"
+    },
+    {
+        "ticker": "TKNO",
+        "name": "TEKNO"
+    },
+    {
+        "ticker": "TOTS",
+        "name": "TOTVS"
+    },
+    {
+        "ticker": "TPIS",
+        "name": "TRIUNFO PART"
+    },
+    {
+        "ticker": "TRAD",
+        "name": "TC"
+    },
+    {
+        "ticker": "TRIS",
+        "name": "TRISUL"
+    },
+    {
+        "ticker": "TRPL",
+        "name": "TRAN PAULIST"
+    },
+    {
+        "ticker": "TTEN",
+        "name": "3TENTOS"
+    },
+    {
+        "ticker": "TUPY",
+        "name": "TUPY"
+    },
+    {
+        "ticker": "TXRX",
+        "name": "TEX RENAUX"
+    },
+    {
+        "ticker": "UCAS",
+        "name": "UNICASA"
+    },
+    {
+        "ticker": "UGPA",
+        "name": "ULTRAPAR"
+    },
+    {
+        "ticker": "UNIP",
+        "name": "UNIPAR"
+    },
+    {
+        "ticker": "USIM",
+        "name": "USIMINAS"
+    },
+    {
+        "ticker": "VALE",
+        "name": "VALE"
+    },
+    {
+        "ticker": "VAMO",
+        "name": "VAMOS"
+    },
+    {
+        "ticker": "VBBR",
+        "name": "VIBRA"
+    },
+    {
+        "ticker": "VITT",
+        "name": "VITTIA"
+    },
+    {
+        "ticker": "VIVA",
+        "name": "VIVARA S.A."
+    },
+    {
+        "ticker": "VIVR",
+        "name": "VIVER"
+    },
+    {
+        "ticker": "VIVT",
+        "name": "TELEF BRASIL"
+    },
+    {
+        "ticker": "VLID",
+        "name": "VALID"
+    },
+    {
+        "ticker": "VSPT",
+        "name": "FER C ATLANT"
+    },
+    {
+        "ticker": "VSTE",
+        "name": "VESTE"
+    },
+    {
+        "ticker": "VULC",
+        "name": "VULCABRAS"
+    },
+    {
+        "ticker": "VVEO",
+        "name": "VIVEO"
+    },
+    {
+        "ticker": "WEGE",
+        "name": "WEG"
+    },
+    {
+        "ticker": "WEST",
+        "name": "WESTWING"
+    },
+    {
+        "ticker": "WHRL",
+        "name": "WHIRLPOOL"
+    },
+    {
+        "ticker": "WIZC",
+        "name": "WIZ CO"
+    },
+    {
+        "ticker": "WLMM",
+        "name": "WLM IND COM"
+    },
+    {
+        "ticker": "YDUQ",
+        "name": "YDUQS PART"
+    },
+    {
+        "ticker": "ZAMP",
+        "name": "ZAMP S.A."
+    }
+]

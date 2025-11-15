@@ -43,3 +43,4 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 -- Create index for push_subscriptions
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
 
+
