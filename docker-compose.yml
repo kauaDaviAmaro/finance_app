@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ============================================================================
 # FINANCE APP - DOCKER COMPOSE ORCHESTRATION
 # ============================================================================
@@ -155,11 +153,11 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - celerybeat_data:/app/celerybeat-schedule
+      - celerybeat_data:/app/celerybeat
     networks:
       - finance_network
     restart: unless-stopped
-    command: celery -A app.celery_worker beat -l info
+    command: celery -A app.celery_worker beat -l info --schedule=/app/celerybeat/celerybeat-schedule
 
   # ==========================================================================
   # 6. FLOWER (Celery Monitoring Dashboard - Optional)
@@ -174,6 +172,12 @@ services:
       - worker
       - beat
     environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-finances_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
@@ -201,6 +205,31 @@ services:
     networks:
       - finance_network
     restart: unless-stopped
+
+  # ==========================================================================
+  # CREATE ADMIN SCRIPT (One-time use)
+  # ==========================================================================
+  create_admin:
+    build:
+      context: ./finance_backend
+      dockerfile: Dockerfile
+    container_name: finance_create_admin
+    environment:
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-finances_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - finance_network
+    profiles:
+      - tools
+    # Este serviço não roda automaticamente, apenas quando chamado explicitamente
+    # Uso: docker compose --profile tools run --rm create_admin <email> <username> <password> [--full-name "Nome"]
 
 # ============================================================================
 # NETWORKS

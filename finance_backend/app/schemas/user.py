@@ -6,7 +6,6 @@ from app.db.models import UserRole
 class UserBase(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=100)
-    full_name: str | None = None
 
 
 class UserCreate(UserBase):
@@ -16,6 +15,7 @@ class UserCreate(UserBase):
 class UserOut(UserBase):
     id: int
     role: UserRole
+    subscription_status: str | None = None
     created_at: datetime | None = None
 
     class Config:
@@ -34,9 +34,7 @@ class SubscriptionStatus(BaseModel):
 class UserPublic(BaseModel):
     email: EmailStr
     username: str
-    full_name: str | None = None
     created_at: datetime | None = None
-    two_factor_enabled: bool = False
 
     class Config:
         from_attributes = True
@@ -45,7 +43,6 @@ class UserPublic(BaseModel):
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=100)
-    full_name: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):

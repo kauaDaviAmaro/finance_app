@@ -5,15 +5,23 @@ import RouterLoading from './components/RouterLoading.vue'
 
 const router = useRouter()
 const isLoading = ref(false)
+let loadingTimeout: ReturnType<typeof setTimeout> | null = null
 
 router.beforeEach(() => {
-  isLoading.value = true
+  // Só mostra loading se demorar mais de 200ms
+  loadingTimeout = setTimeout(() => {
+    isLoading.value = true
+  }, 200)
 })
 
 router.afterEach(() => {
-  setTimeout(() => {
-    isLoading.value = false
-  }, 300)
+  // Cancela o timeout se a navegação for rápida
+  if (loadingTimeout) {
+    clearTimeout(loadingTimeout)
+    loadingTimeout = null
+  }
+  // Esconde o loading imediatamente
+  isLoading.value = false
 })
 </script>
 

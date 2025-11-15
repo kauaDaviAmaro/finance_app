@@ -1,7 +1,22 @@
-version: '3.8'
+# ============================================================================
+# FINANCE APP - DOCKER COMPOSE FOR DEVELOPMENT
+# ============================================================================
+# Development configuration with hot reload for both frontend and backend
+# 
+# COMANDO PARA DESENVOLVIMENTO:
+#   docker-compose -f docker-compose.dev.yml up --build
+#
+# Features:
+# - Hot reload for FastAPI (uvicorn --reload)
+# - Hot reload for Vue.js (Vite dev server)
+# - Source code mounted as volumes (changes reflect immediately)
+# - Debug mode enabled
+# ============================================================================
 
 services:
-  # Banco de dados PostgreSQL
+  # ==========================================================================
+  # 1. POSTGRESQL DATABASE (SQLAlchemy ORM)
+  # ==========================================================================
   db:
     image: postgres:15-alpine
     container_name: finance_db_dev
@@ -18,28 +33,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - finance_network_dev
+    restart: unless-stopped
 
-  # Redis para Celery
+  # ==========================================================================
+  # 2. REDIS MESSAGE BROKER (Celery Task Queue)
+  # ==========================================================================
   redis:
     image: redis:6-alpine
     container_name: finance_redis_dev
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - finance_network_dev
+    restart: unless-stopped
 
-  # API Backend (com hot reload)
+  # ==========================================================================
+  # 3. FASTAPI BACKEND (Python REST API) - WITH HOT RELOAD
+  # ==========================================================================
   api:
     build:
       context: ./finance_backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: finance_api_dev
     depends_on:
       db:
@@ -52,126 +75,200 @@ services:
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: "true"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-}
+    volumes:
+      # Mount source code for hot reload
+      - ./finance_backend/app:/app/app
+      - ./finance_backend/requirements.txt:/app/requirements.txt
     ports:
       - "${API_PORT:-8000}:8000"
-    volumes:
-      - ./finance_backend:/app
-      - /app/__pycache__
     networks:
       - finance_network_dev
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Celery Worker (com hot reload)
+  # ==========================================================================
+  # 4. CELERY WORKER (Background Task Processor)
+  # Note: Celery doesn't support --reload. Restart container to pick up changes.
+  # ==========================================================================
   worker:
     build:
       context: ./finance_backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: finance_worker_dev
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-1}
     volumes:
-      - ./finance_backend:/app
-      - /app/__pycache__
+      # Mount source code for hot reload
+      - ./finance_backend/app:/app/app
     networks:
       - finance_network_dev
-    command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-1} --prefetch-multiplier=1 -Q periodic_tasks
     restart: unless-stopped
+    command: celery -A app.celery_worker worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-1} --prefetch-multiplier=1 -Q periodic_tasks
 
-  # Celery Beat (com hot reload)
+  # ==========================================================================
+  # 5. CELERY BEAT (Scheduled Task Scheduler)
+  # Note: Celery Beat doesn't support --reload. Restart container to pick up changes.
+  # ==========================================================================
   beat:
     build:
       context: ./finance_backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: finance_beat_dev
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-finances_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - ./finance_backend:/app
-      - /app/__pycache__
+      - celerybeat_data_dev:/app/celerybeat
+      # Mount source code for hot reload
+      - ./finance_backend/app:/app/app
     networks:
       - finance_network_dev
-    command: celery -A app.celery_worker beat -l info
     restart: unless-stopped
+    command: celery -A app.celery_worker beat -l info --schedule=/app/celerybeat/celerybeat-schedule
 
-  # Flower - Monitoramento de Filas Celery/Redis
+  # ==========================================================================
+  # 6. FLOWER (Celery Monitoring Dashboard - Optional)
+  # ==========================================================================
   flower:
     build:
       context: ./finance_backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: finance_flower_dev
     depends_on:
       - redis
       - worker
       - beat
     environment:
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-finances_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
       - "127.0.0.1:5555:5555"
-    volumes:
-      - ./finance_backend:/app
-      - /app/__pycache__
     networks:
       - finance_network_dev
     restart: unless-stopped
     command: celery -A app.celery_worker flower
 
-  # Frontend (com hot reload)
-  frontend:
+  # ==========================================================================
+  # 7. VUE.JS FRONTEND (User Interface) - WITH HOT RELOAD
+  # ==========================================================================
+  # frontend:
+  #   build:
+  #     context: ./finance_frontend
+  #     dockerfile: Dockerfile.dev
+  #     args:
+  #       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+  #   container_name: finance_frontend_dev
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   environment:
+  #     - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+  #   volumes:
+  #     # Mount source code for hot reload
+  #     - ./finance_frontend/src:/app/src
+  #     - ./finance_frontend/public:/app/public
+  #     - ./finance_frontend/index.html:/app/index.html
+  #     - ./finance_frontend/vite.config.ts:/app/vite.config.ts
+  #     - ./finance_frontend/tsconfig.json:/app/tsconfig.json
+  #     - ./finance_frontend/tsconfig.app.json:/app/tsconfig.app.json
+  #     - ./finance_frontend/tsconfig.node.json:/app/tsconfig.node.json
+  #     - ./finance_frontend/package.json:/app/package.json
+  #     # Exclude node_modules from volume mount (use container's node_modules)
+  #     - /app/node_modules
+  #   ports:
+  #     - "${FRONTEND_PORT:-5173}:5173"
+  #   networks:
+  #     - finance_network_dev
+  #   restart: unless-stopped
+
+  # ==========================================================================
+  # CREATE ADMIN SCRIPT (One-time use)
+  # ==========================================================================
+  create_admin:
     build:
-      context: ./finance_frontend
+      context: ./finance_backend
       dockerfile: Dockerfile.dev
-    container_name: finance_frontend_dev
-    depends_on:
-      - api
+    container_name: finance_create_admin_dev
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
-    ports:
-      - "${FRONTEND_PORT:-5173}:5173"
-    volumes:
-      - ./finance_frontend:/app
-      - /app/node_modules
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-finances_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-here}
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - finance_network_dev
-    restart: unless-stopped
-    # Nota: Para desenvolvimento, se acessar pelo navegador, use VITE_API_BASE_URL=http://localhost:8000
-    # Se acessar dentro do container, use VITE_API_BASE_URL=http://api:8000
+    profiles:
+      - tools
+    # Este serviço não roda automaticamente, apenas quando chamado explicitamente
+    # Uso: docker compose -f docker-compose.dev.yml --profile tools run --rm create_admin <email> <username> <password> [--full-name "Nome"]
 
+# ============================================================================
+# NETWORKS
+# ============================================================================
 networks:
   finance_network_dev:
     driver: bridge
+    name: finance_network_dev
 
+# ============================================================================
+# VOLUMES
+# ============================================================================
 volumes:
   postgres_data_dev:
-
+    name: finance_postgres_data_dev
+  celerybeat_data_dev:
+    name: finance_celerybeat_data_dev

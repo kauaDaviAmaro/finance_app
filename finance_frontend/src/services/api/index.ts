@@ -12,6 +12,7 @@ export { watchlistApi } from './watchlist.api'
 export { alertsApi } from './alerts.api'
 export { subscriptionApi } from './subscription.api'
 export { userApi } from './user.api'
+export { notificationsApi } from './notifications.api'
 
 // Unified API object for backward compatibility
 import { authApi } from './auth.api'
@@ -21,6 +22,7 @@ import { watchlistApi } from './watchlist.api'
 import { alertsApi } from './alerts.api'
 import { subscriptionApi } from './subscription.api'
 import { userApi } from './user.api'
+import { notificationsApi } from './notifications.api'
 
 export const api = {
   // Auth methods
@@ -58,5 +60,11 @@ export const api = {
   // User methods
   updateMe: userApi.updateMe,
   changePassword: userApi.changePassword,
+  
+  // Notification methods
+  getNotifications: notificationsApi.getNotifications,
+  markAsRead: notificationsApi.markAsRead,
+  markAllAsRead: notificationsApi.markAllAsRead,
+  deleteNotification: notificationsApi.deleteNotification,
 }
 

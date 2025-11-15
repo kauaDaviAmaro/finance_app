@@ -22,7 +22,6 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
     user = User(
         email=payload.email,
         username=payload.username,
-        full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
     )
     db.add(user)
@@ -65,9 +64,6 @@ def update_me(
         if exists:
             raise HTTPException(status_code=400, detail="Username already taken")
         current_user.username = payload.username
-
-    if payload.full_name is not None:
-        current_user.full_name = payload.full_name
 
     db.add(current_user)
     db.commit()

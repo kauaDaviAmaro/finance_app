@@ -3,7 +3,33 @@ from typing import List, Optional
 from datetime import date, datetime
 from decimal import Decimal
 
+class PortfolioCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255, description="Nome do portfolio")
+    category: Optional[str] = Field(None, max_length=100, description="Categoria do portfolio (opcional)")
+    description: Optional[str] = Field(None, description="Descrição do portfolio (opcional)")
+
+class PortfolioUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255, description="Nome do portfolio")
+    category: Optional[str] = Field(None, max_length=100, description="Categoria do portfolio (opcional)")
+    description: Optional[str] = Field(None, description="Descrição do portfolio (opcional)")
+
+class PortfolioOut(BaseModel):
+    id: int
+    name: str
+    category: Optional[str] = None
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    item_count: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+class PortfolioList(BaseModel):
+    portfolios: List[PortfolioOut]
+
 class PortfolioItemCreate(BaseModel):
+    portfolio_id: int = Field(..., description="ID do portfolio")
     ticker: str = Field(..., min_length=1, max_length=20, description="Símbolo do ativo (ex: PETR4)")
     quantity: int = Field(..., gt=0, description="Quantidade de ações")
     purchase_price: Decimal = Field(..., gt=0, description="Preço de compra unitário")
@@ -15,6 +41,7 @@ class PortfolioItemUpdate(BaseModel):
 
 class PortfolioItemOut(BaseModel):
     id: int
+    portfolio_id: int
     ticker: str
     quantity: int
     purchase_price: Decimal

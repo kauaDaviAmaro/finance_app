@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     STRIPE_CANCEL_URL: Optional[str] = None
     STRIPE_RETURN_URL: Optional[str] = None
     
+    # Push Notifications (VAPID)
+    VAPID_PUBLIC_KEY: Optional[str] = None
+    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_CLAIM_EMAIL: str = "mailto:admin@seuapp.com"
+    
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8"

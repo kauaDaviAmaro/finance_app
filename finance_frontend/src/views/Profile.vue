@@ -15,7 +15,6 @@ const successMessage = ref<string | null>(null)
 const profileForm = ref<UserUpdate>({
   email: undefined,
   username: undefined,
-  full_name: undefined,
 })
 
 const passwordForm = ref<ChangePasswordRequest>({
@@ -39,7 +38,6 @@ async function load() {
     }
     profileForm.value.email = auth.user?.email
     profileForm.value.username = auth.user?.username
-    profileForm.value.full_name = auth.user?.full_name
     subscription.value = await api.getSubscriptionStatus()
   } catch (err) {
     errorMessage.value = err instanceof ApiError ? err.message : 'Erro ao carregar perfil'
@@ -56,7 +54,6 @@ async function saveProfile() {
     await api.updateMe({
       email: profileForm.value.email,
       username: profileForm.value.username,
-      full_name: profileForm.value.full_name,
     })
     await auth.fetchUser()
     successMessage.value = 'Perfil atualizado com sucesso'
@@ -118,16 +115,6 @@ onMounted(load)
           <span class="label">Username</span>
           <input
             v-model="profileForm.username"
-            type="text"
-            class="input"
-            :disabled="loading || saving"
-          />
-        </label>
-
-        <label class="form-field">
-          <span class="label">Nome completo</span>
-          <input
-            v-model="profileForm.full_name"
             type="text"
             class="input"
             :disabled="loading || saving"

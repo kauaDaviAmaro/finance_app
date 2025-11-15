@@ -7,6 +7,8 @@ from decimal import Decimal
 
 from app.core.market.technical_analysis import get_technical_analysis
 from app.core.email_service import send_alert_email
+from app.core.notification_service import create_notification
+from app.db.models import NotificationType
 
 
 def check_and_trigger_alerts(db: Session):
@@ -228,7 +230,29 @@ def check_and_trigger_alerts(db: Session):
                         
                         send_alert_email(user.email, subject, body)
 
-                    # 2. Atualiza o DB
+                    # 2. Cria notificação in-app e push
+                    notification_title = f"🚨 Alerta Disparado: {alert.ticker}"
+                    notification_message = f"{alert.indicator_type} {alert.condition.replace('_', ' ').lower()}"
+                    if alert.threshold_value:
+                        notification_message += f" ({alert.threshold_value})"
+                    
+                    create_notification(
+                        db=db,
+                        user_id=alert.user_id,
+                        notification_type=NotificationType.ALERT_TRIGGERED,
+                        title=notification_title,
+                        message=notification_message,
+                        data={
+                            "alert_id": alert.id,
+                            "ticker": alert.ticker,
+                            "indicator_type": alert.indicator_type,
+                            "condition": alert.condition,
+                            "threshold_value": str(alert.threshold_value) if alert.threshold_value else None
+                        },
+                        send_push=True
+                    )
+
+                    # 3. Atualiza o DB
                     alert.is_active = False 
                     alert.triggered_at = datetime.now()
                     db.add(alert)

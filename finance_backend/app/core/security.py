@@ -34,6 +34,7 @@ def create_access_token(subject: str, expires_minutes: Optional[int] = None) -> 
 
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -79,3 +80,22 @@ def get_pro_user(current_user: User = Depends(get_current_user)) -> User:
             detail="Recurso exclusivo para assinantes PRO."
         )
     return current_user
+
+
+def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Dependência opcional que retorna o usuário se autenticado, ou None se não autenticado.
+    """
+    if not credentials:
+        return None
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = int(payload.get("sub"))
+        user = db.query(User).filter(User.id == user_id).first()
+        return user
+    except (jwt.JWTError, ValueError, TypeError):
+        return None

@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import User, UserRole
 from app.core.config import settings
+from app.core.notification_service import create_notification
+from app.db.models import NotificationType
 import logging
 
 logger = logging.getLogger(__name__)
@@ -80,6 +82,17 @@ def handle_subscription_created(event: dict, db: Session):
     user.subscription_status = subscription["status"]
     db.commit()
     logger.info(f"User {user.id} upgraded to PRO (subscription created)")
+    
+    # Criar notificação
+    create_notification(
+        db=db,
+        user_id=user.id,
+        notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+        title="🎉 Assinatura PRO Ativada!",
+        message="Sua assinatura PRO foi ativada com sucesso. Aproveite todos os recursos!",
+        data={"subscription_status": subscription["status"]},
+        send_push=True
+    )
 
 
 def handle_subscription_updated(event: dict, db: Session):
@@ -100,9 +113,31 @@ def handle_subscription_updated(event: dict, db: Session):
     if subscription_status in ["canceled", "unpaid", "past_due"]:
         user.role = UserRole.USER
         logger.info(f"User {user.id} downgraded to USER (subscription {subscription_status})")
+        
+        # Criar notificação
+        create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+            title="⚠️ Assinatura Cancelada",
+            message=f"Sua assinatura PRO foi cancelada. Status: {subscription_status}",
+            data={"subscription_status": subscription_status},
+            send_push=True
+        )
     elif subscription_status == "active":
         user.role = UserRole.PRO
         logger.info(f"User {user.id} subscription active (PRO)")
+        
+        # Criar notificação
+        create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+            title="✅ Assinatura Reativada",
+            message="Sua assinatura PRO foi reativada com sucesso!",
+            data={"subscription_status": subscription_status},
+            send_push=True
+        )
     
     db.commit()
 
@@ -122,6 +157,17 @@ def handle_subscription_deleted(event: dict, db: Session):
     user.subscription_status = "canceled"
     db.commit()
     logger.info(f"User {user.id} downgraded to USER (subscription deleted)")
+    
+    # Criar notificação
+    create_notification(
+        db=db,
+        user_id=user.id,
+        notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+        title="❌ Assinatura Cancelada",
+        message="Sua assinatura PRO foi cancelada. Você ainda pode fazer upgrade a qualquer momento.",
+        data={"subscription_status": "canceled"},
+        send_push=True
+    )
 
 
 def handle_checkout_completed(event: dict, db: Session):
@@ -144,6 +190,19 @@ def handle_checkout_completed(event: dict, db: Session):
         user.subscription_status = "active"
         db.commit()
         logger.info(f"User {user.id} upgraded to PRO (checkout completed)")
+        
+        # Criar notificação
+        create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+            title="🎉 Bem-vindo ao PRO!",
+            message="Pagamento confirmado! Sua assinatura PRO está ativa.",
+            data={"subscription_status": "active"},
+            send_push=True
+        )
+
+
 
 
 

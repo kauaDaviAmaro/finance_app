@@ -7,6 +7,9 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     requiresGuest?: boolean
     requiresPro?: boolean
+    requiresAdmin?: boolean
+    layout?: string
+    title?: string
   }
 }
 
@@ -78,6 +81,69 @@ const router = createRouter({
       component: () => import('../views/Profile.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/support',
+      name: 'Support',
+      component: () => import('../views/Support.vue'),
+      meta: { requiresAuth: true },
+    },
+    // Admin Routes
+    {
+      path: '/admin',
+      component: () => import('../layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true, layout: 'admin' },
+      redirect: '/admin/dashboard',
+      children: [
+        {
+          path: 'dashboard',
+          name: 'AdminDashboard',
+          component: () => import('../views/admin/AdminDashboard.vue'),
+          meta: { title: 'Dashboard' },
+        },
+        {
+          path: 'users',
+          name: 'AdminUsers',
+          component: () => import('../views/admin/AdminUsers.vue'),
+          meta: { title: 'Usuários' },
+        },
+        {
+          path: 'alerts',
+          name: 'AdminAlerts',
+          component: () => import('../views/admin/AdminAlerts.vue'),
+          meta: { title: 'Alertas' },
+        },
+        {
+          path: 'portfolio',
+          name: 'AdminPortfolio',
+          component: () => import('../views/admin/AdminPortfolio.vue'),
+          meta: { title: 'Portfólio' },
+        },
+        {
+          path: 'watchlist',
+          name: 'AdminWatchlist',
+          component: () => import('../views/admin/AdminWatchlist.vue'),
+          meta: { title: 'Watchlist' },
+        },
+        {
+          path: 'ticker-prices',
+          name: 'AdminTickerPrices',
+          component: () => import('../views/admin/AdminTickerPrices.vue'),
+          meta: { title: 'Ticker Prices' },
+        },
+        {
+          path: 'scan-results',
+          name: 'AdminScanResults',
+          component: () => import('../views/admin/AdminScanResults.vue'),
+          meta: { title: 'Scan Results' },
+        },
+        {
+          path: 'support',
+          name: 'AdminSupport',
+          component: () => import('../views/admin/AdminSupport.vue'),
+          meta: { title: 'Suporte' },
+        },
+      ],
+    },
   ],
 })
 
@@ -110,6 +176,15 @@ router.beforeEach((to, from, next) => {
     const isPro = role === 'PRO' || role === 'ADMIN'
     if (!isPro) {
       next('/subscription')
+      return
+    }
+  }
+
+  // Se a rota requer ADMIN, valida papel do usuário
+  if (to.meta.requiresAdmin) {
+    const role = authStore.user?.role
+    if (role !== 'ADMIN') {
+      next('/home')
       return
     }
   }

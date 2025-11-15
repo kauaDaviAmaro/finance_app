@@ -17,5 +17,6 @@ pytest-cov
 pytest-mock
 httpx
 flower
-sqladmin
 stripe>=7.0.0
+pywebpush>=1.14.0
+py-vapid>=1.9.0

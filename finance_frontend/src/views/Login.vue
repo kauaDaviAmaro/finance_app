@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Briefcase, Check } from 'lucide-vue-next'
+import { Coins, ArrowLeft, BarChart, Target, Activity } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -11,6 +11,10 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+
+function goToHome() {
+  router.push('/')
+}
 
 async function handleSubmit() {
   error.value = ''
@@ -37,32 +41,36 @@ async function handleSubmit() {
 
 <template>
   <div class="login-container">
+    <button @click="goToHome" class="back-button" title="Voltar para a página inicial">
+      <ArrowLeft :size="20" />
+      <span>Voltar</span>
+    </button>
     <div class="login-wrapper">
       <div class="login-left">
         <div class="left-content">
           <div class="logo">
-            <Briefcase :size="64" />
+            <Coins :size="64" />
           </div>
           <h1>Bem-vindo de volta</h1>
-          <p>Gerencie seus investimentos e acompanhe o mercado em tempo real</p>
+          <p>Acesse seu portfólio, alertas e análises técnicas em tempo real</p>
           <div class="features">
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <BarChart :size="16" />
               </span>
-              <span>Acesso rápido ao seu portfólio</span>
+              <span>Portfólio com P&L atualizado</span>
             </div>
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <Target :size="16" />
               </span>
-              <span>Alertas personalizados configurados</span>
+              <span>Alertas por indicadores técnicos</span>
             </div>
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <Activity :size="16" />
               </span>
-              <span>Análises e dados atualizados</span>
+              <span>Scanner e análise técnica completa</span>
             </div>
           </div>
         </div>
@@ -72,7 +80,7 @@ async function handleSubmit() {
         <div class="login-card">
           <div class="login-header">
             <h2>Entrar</h2>
-            <p>Faça login para acessar sua conta</p>
+            <p>Acesse sua conta e continue gerenciando seus investimentos</p>
           </div>
 
           <form @submit.prevent="handleSubmit" class="login-form">
@@ -129,6 +137,34 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.back-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #3b82f6;
+  transform: translateX(-2px);
 }
 
 .login-wrapper {
@@ -156,12 +192,32 @@ async function handleSubmit() {
 .login-left::before {
   content: '';
   position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.3;
+  animation: gridMove 20s linear infinite;
+}
+
+.login-left::after {
+  content: '';
+  position: absolute;
   top: -50%;
   right: -50%;
   width: 200%;
   height: 200%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
   animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes gridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
 }
 
 @keyframes pulse {
@@ -227,16 +283,23 @@ async function handleSubmit() {
 }
 
 .feature-icon {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   flex-shrink: 0;
   color: white;
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover .feature-icon {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1) rotate(5deg);
 }
 
 .login-right {
@@ -382,12 +445,7 @@ async function handleSubmit() {
   }
 
   .login-left {
-    padding: 40px 30px;
-    min-height: 300px;
-  }
-
-  .login-left h1 {
-    font-size: 24px;
+    display: none;
   }
 
   .login-right {
@@ -400,13 +458,20 @@ async function handleSubmit() {
     padding: 0;
   }
 
+  .back-button {
+    top: 12px;
+    left: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .back-button span {
+    display: none;
+  }
+
   .login-wrapper {
     border-radius: 0;
     min-height: 100vh;
-  }
-
-  .login-left {
-    padding: 30px 20px;
   }
 
   .login-right {
@@ -415,10 +480,6 @@ async function handleSubmit() {
 
   .login-header h2 {
     font-size: 24px;
-  }
-
-  .logo {
-    font-size: 48px;
   }
 }
 </style>

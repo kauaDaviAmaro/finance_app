@@ -1,28 +1,45 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate } from '../services/api/index'
-import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Search } from 'lucide-vue-next'
+import { portfolioApi, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate, type Portfolio, type PortfolioCreate } from '../services/api/index'
+import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Search, Edit2, FolderPlus, ChevronDown } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const portfolios = ref<Portfolio[]>([])
+const selectedPortfolioId = ref<number | null>(null)
 const portfolio = ref<PortfolioSummary | null>(null)
 const loading = ref(true)
+const loadingPortfolios = ref(false)
 const error = ref<string | null>(null)
 const creating = ref(false)
 const selling = ref<number | null>(null)
 const deleting = ref<number | null>(null)
+const deletingPortfolio = ref<number | null>(null)
 const showAddForm = ref(false)
 const showSellForm = ref<number | null>(null)
+const showPortfolioForm = ref(false)
+const editingPortfolio = ref<Portfolio | null>(null)
+const showPortfolioDropdown = ref(false)
+const showDeleteModal = ref(false)
+const portfolioToDelete = ref<Portfolio | null>(null)
 
 const newPosition = ref<PortfolioItemCreate>({
+  portfolio_id: 0,
   ticker: '',
   quantity: 1,
   purchase_price: 0,
   purchase_date: new Date().toISOString().split('T')[0] as string,
+})
+
+const newPortfolio = ref<PortfolioCreate>({
+  name: '',
+  category: null,
+  description: null,
 })
 
 const sellData = ref<PortfolioItemUpdate>({
@@ -50,11 +67,76 @@ const soldPositions = computed(() => {
   return portfolio.value.positions.filter(p => p.sold_date)
 })
 
-async function loadPortfolio() {
+const selectedPortfolio = computed(() => {
+  return portfolios.value.find(p => p.id === selectedPortfolioId.value)
+})
+
+const portfolioLimit = computed(() => {
+  const role = authStore.user?.role
+  if (!role) return 3
+  if (role === 'ADMIN') return Infinity
+  if (role === 'PRO') return 10
+  return 3
+})
+
+const canCreatePortfolio = computed(() => {
+  return portfolios.value.length < portfolioLimit.value
+})
+
+const portfolioCountText = computed(() => {
+  if (portfolioLimit.value === Infinity) {
+    return `${portfolios.value.length} portfolios`
+  }
+  return `${portfolios.value.length}/${portfolioLimit.value} portfolios`
+})
+
+async function loadPortfolios() {
+  loadingPortfolios.value = true
   loading.value = true
   error.value = null
   try {
-    portfolio.value = await api.getPortfolio()
+    const response = await portfolioApi.getPortfolios()
+    portfolios.value = response.portfolios
+    
+    // Selecionar o primeiro portfolio se não houver seleção
+    if (portfolios.value.length > 0 && !selectedPortfolioId.value) {
+      const firstPortfolio = portfolios.value[0]
+      if (firstPortfolio) {
+        selectedPortfolioId.value = firstPortfolio.id
+        await loadPortfolio()
+      }
+    } else if (selectedPortfolioId.value) {
+      await loadPortfolio()
+    } else {
+      // Não há portfolios e nenhum selecionado, parar loading
+      loading.value = false
+      portfolio.value = null
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error.value = err.message
+    } else {
+      error.value = 'Erro ao carregar portfolios. Tente novamente.'
+    }
+    console.error(err)
+    loading.value = false
+  } finally {
+    loadingPortfolios.value = false
+  }
+}
+
+async function loadPortfolio() {
+  if (!selectedPortfolioId.value) {
+    portfolio.value = null
+    loading.value = false
+    return
+  }
+  
+  loading.value = true
+  error.value = null
+  try {
+    portfolio.value = await portfolioApi.getPortfolio(selectedPortfolioId.value)
+    newPosition.value.portfolio_id = selectedPortfolioId.value
   } catch (err) {
     if (err instanceof ApiError) {
       error.value = err.message
@@ -67,7 +149,18 @@ async function loadPortfolio() {
   }
 }
 
+async function selectPortfolio(portfolioId: number) {
+  selectedPortfolioId.value = portfolioId
+  showPortfolioDropdown.value = false
+  await loadPortfolio()
+}
+
 async function addPosition() {
+  if (!selectedPortfolioId.value) {
+    error.value = 'Por favor, selecione um portfolio'
+    return
+  }
+
   if (!newPosition.value.ticker.trim()) {
     error.value = 'Por favor, digite um ticker'
     return
@@ -87,10 +180,11 @@ async function addPosition() {
   error.value = null
 
   try {
-    await api.addPortfolioItem(newPosition.value)
+    await portfolioApi.addPortfolioItem(newPosition.value)
     
     // Reset form
     newPosition.value = {
+      portfolio_id: selectedPortfolioId.value,
       ticker: '',
       quantity: 1,
       purchase_price: 0,
@@ -98,6 +192,7 @@ async function addPosition() {
     }
     showAddForm.value = false
     await loadPortfolio()
+    await loadPortfolios() // Atualizar contagem de itens
   } catch (err) {
     if (err instanceof ApiError) {
       error.value = err.message
@@ -128,7 +223,7 @@ async function sellPosition(itemId: number) {
   error.value = null
 
   try {
-    await api.sellPortfolioItem(itemId, sellData.value)
+    await portfolioApi.sellPortfolioItem(itemId, sellData.value)
     showSellForm.value = null
     await loadPortfolio()
   } catch (err) {
@@ -153,8 +248,9 @@ async function deletePosition(itemId: number) {
   error.value = null
 
   try {
-    await api.deletePortfolioItem(itemId)
+    await portfolioApi.deletePortfolioItem(itemId)
     await loadPortfolio()
+    await loadPortfolios() // Atualizar contagem de itens
   } catch (err) {
     if (err instanceof ApiError) {
       error.value = err.message
@@ -166,6 +262,133 @@ async function deletePosition(itemId: number) {
     deleting.value = null
   }
 }
+
+function openPortfolioForm(portfolio?: Portfolio) {
+  editingPortfolio.value = portfolio || null
+  if (portfolio) {
+    newPortfolio.value = {
+      name: portfolio.name,
+      category: portfolio.category || null,
+      description: portfolio.description || null,
+    }
+  } else {
+    newPortfolio.value = {
+      name: '',
+      category: null,
+      description: null,
+    }
+  }
+  showPortfolioForm.value = true
+}
+
+function closePortfolioForm() {
+  showPortfolioForm.value = false
+  editingPortfolio.value = null
+  newPortfolio.value = {
+    name: '',
+    category: null,
+    description: null,
+  }
+}
+
+async function savePortfolio() {
+  if (!newPortfolio.value.name.trim()) {
+    error.value = 'Por favor, digite um nome para o portfolio'
+    return
+  }
+
+  creating.value = true
+  error.value = null
+
+  try {
+    if (editingPortfolio.value) {
+      await portfolioApi.updatePortfolio(editingPortfolio.value.id, newPortfolio.value)
+    } else {
+      const created = await portfolioApi.createPortfolio(newPortfolio.value)
+      selectedPortfolioId.value = created.id
+    }
+    closePortfolioForm()
+    await loadPortfolios()
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error.value = err.message
+    } else {
+      error.value = editingPortfolio.value 
+        ? 'Erro ao atualizar portfolio. Tente novamente.'
+        : 'Erro ao criar portfolio. Tente novamente.'
+    }
+    console.error(err)
+  } finally {
+    creating.value = false
+  }
+}
+
+function deletePortfolio(portfolioId: number) {
+  const portfolio = portfolios.value.find(p => p.id === portfolioId)
+  if (!portfolio) return
+
+  portfolioToDelete.value = portfolio
+  showDeleteModal.value = true
+}
+
+async function confirmDeletePortfolio() {
+  if (!portfolioToDelete.value) return
+
+  const portfolioId = portfolioToDelete.value.id
+  deletingPortfolio.value = portfolioId
+  error.value = null
+
+  try {
+    await portfolioApi.deletePortfolio(portfolioId)
+    showDeleteModal.value = false
+    portfolioToDelete.value = null
+    
+    if (selectedPortfolioId.value === portfolioId) {
+      selectedPortfolioId.value = null
+      portfolio.value = null
+    }
+    await loadPortfolios()
+    if (portfolios.value.length > 0 && !selectedPortfolioId.value) {
+      const firstPortfolio = portfolios.value[0]
+      if (firstPortfolio) {
+        selectedPortfolioId.value = firstPortfolio.id
+        await loadPortfolio()
+      }
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error.value = err.message
+    } else {
+      error.value = 'Erro ao deletar portfolio. Tente novamente.'
+    }
+    console.error(err)
+  } finally {
+    deletingPortfolio.value = null
+  }
+}
+
+function cancelDeletePortfolio() {
+  showDeleteModal.value = false
+  portfolioToDelete.value = null
+}
+
+const deleteModalMessage = computed(() => {
+  if (!portfolioToDelete.value) return ''
+  
+  if (portfolioToDelete.value.item_count && portfolioToDelete.value.item_count > 0) {
+    return `O portfolio "${portfolioToDelete.value.name}" contém ${portfolioToDelete.value.item_count} posição(ões). Todas as posições serão removidas permanentemente. Deseja continuar?`
+  }
+  return `Tem certeza que deseja excluir o portfolio "${portfolioToDelete.value.name}"? Esta ação não pode ser desfeita.`
+})
+
+const deleteModalWarning = computed(() => {
+  if (!portfolioToDelete.value) return ''
+  
+  if (portfolioToDelete.value.item_count && portfolioToDelete.value.item_count > 0) {
+    return `Todas as ${portfolioToDelete.value.item_count} posição(ões) serão removidas permanentemente.`
+  }
+  return ''
+})
 
 function goToAnalysis(ticker: string) {
   router.push(`/market-analysis?ticker=${ticker}`)
@@ -201,7 +424,19 @@ onMounted(async () => {
     }
   }
 
-  await loadPortfolio()
+  await loadPortfolios()
+  document.addEventListener('click', handleClickOutside)
+})
+
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.portfolio-selector-wrapper')) {
+    showPortfolioDropdown.value = false
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -215,14 +450,75 @@ onMounted(async () => {
           <div class="title-group">
             <BarChart :size="32" class="title-icon" />
             <div>
-              <h1>Meu Portfólio</h1>
+              <h1>Meus Portfólios</h1>
               <p class="subtitle">Gerencie suas posições e acompanhe sua performance</p>
             </div>
           </div>
-          <button @click="showAddForm = !showAddForm" class="add-button">
-            <Plus :size="20" />
-            <span>Nova Posição</span>
-          </button>
+          <div class="header-actions">
+            <div class="portfolio-selector-wrapper">
+              <span class="portfolio-selector-label">Portfolio:</span>
+              <div class="portfolio-selector" @click="showPortfolioDropdown = !showPortfolioDropdown">
+                <span v-if="selectedPortfolio">{{ selectedPortfolio.name }}</span>
+                <span v-else class="placeholder">Selecione um portfolio</span>
+                <ChevronDown :size="20" />
+              </div>
+              
+              <div v-if="showPortfolioDropdown" class="portfolio-dropdown">
+                <div
+                  v-for="p in portfolios"
+                  :key="p.id"
+                  class="portfolio-dropdown-item"
+                  :class="{ active: p.id === selectedPortfolioId }"
+                  @click="selectPortfolio(p.id)"
+                >
+                  <div class="portfolio-dropdown-info">
+                    <span class="portfolio-name">{{ p.name }}</span>
+                    <span v-if="p.category" class="portfolio-category">{{ p.category }}</span>
+                  </div>
+                  <span class="portfolio-count">{{ p.item_count || 0 }} itens</span>
+                </div>
+                <div class="portfolio-dropdown-actions">
+                  <button @click="openPortfolioForm()" :disabled="!canCreatePortfolio" class="dropdown-action-button">
+                    <FolderPlus :size="16" />
+                    <span>Novo Portfolio</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="button-group">
+              <div class="button-with-label">
+                <span class="button-label">Novo Portfolio:</span>
+                <button @click="openPortfolioForm()" :disabled="!canCreatePortfolio" class="add-button secondary">
+                  <FolderPlus :size="20" />
+                  <span>Novo Portfolio</span>
+                </button>
+              </div>
+              <div class="button-with-label">
+                <span class="button-label">Nova Posição:</span>
+                <button @click="showAddForm = !showAddForm" :disabled="!selectedPortfolioId" class="add-button">
+                  <Plus :size="20" />
+                  <span>Nova Posição</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="portfolios.length > 0" class="portfolio-info">
+          <span class="portfolio-count-text">{{ portfolioCountText }}</span>
+          <div v-if="selectedPortfolio" class="portfolio-actions">
+            <button @click="openPortfolioForm(selectedPortfolio)" class="icon-button" title="Editar portfolio">
+              <Edit2 :size="16" />
+            </button>
+            <button 
+              @click="deletePortfolio(selectedPortfolio.id)" 
+              :disabled="deletingPortfolio === selectedPortfolio.id"
+              class="icon-button danger"
+              title="Deletar portfolio"
+            >
+              <Loader2 v-if="deletingPortfolio === selectedPortfolio.id" :size="16" class="spinner" />
+              <Trash2 v-else :size="16" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -267,76 +563,143 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Add Form -->
-      <div v-if="showAddForm" class="add-form-card">
-        <div class="form-header">
-          <h3>Adicionar Nova Posição</h3>
-          <button @click="showAddForm = false" class="close-button">
-            <X :size="20" />
-          </button>
-        </div>
-        <div class="form-content">
-          <div class="form-grid">
-            <div class="input-group">
-              <label for="ticker">Ticker</label>
-              <div class="input-wrapper">
-                <Search :size="20" class="input-icon" />
-                <input
-                  id="ticker"
-                  v-model="newPosition.ticker"
-                  type="text"
-                  placeholder="Ex: PETR4, AAPL"
-                  :disabled="creating"
-                />
+      <!-- Portfolio Form Modal -->
+      <Teleport to="body">
+        <Transition name="modal">
+          <div v-if="showPortfolioForm" class="modal-overlay" @click="closePortfolioForm">
+            <div class="modal-content" @click.stop>
+              <div class="modal-header">
+                <h2 class="modal-title">{{ editingPortfolio ? 'Editar Portfolio' : 'Novo Portfolio' }}</h2>
+                <button @click="closePortfolioForm" class="modal-close" :disabled="creating">
+                  <X :size="20" />
+                </button>
+              </div>
+              <div class="modal-body">
+                <div class="form-grid">
+                  <div class="input-group">
+                    <label for="portfolio-name">Nome *</label>
+                    <input
+                      id="portfolio-name"
+                      v-model="newPortfolio.name"
+                      type="text"
+                      placeholder="Ex: Portfolio Principal"
+                      :disabled="creating"
+                      required
+                    />
+                  </div>
+
+                  <div class="input-group">
+                    <label for="portfolio-category">Categoria (opcional)</label>
+                    <input
+                      id="portfolio-category"
+                      v-model="newPortfolio.category"
+                      type="text"
+                      placeholder="Ex: Ações, FIIs, Cripto"
+                      :disabled="creating"
+                    />
+                  </div>
+
+                  <div class="input-group full-width">
+                    <label for="portfolio-description">Descrição (opcional)</label>
+                    <textarea
+                      id="portfolio-description"
+                      v-model="newPortfolio.description"
+                      placeholder="Descrição do portfolio"
+                      :disabled="creating"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button @click="closePortfolioForm" :disabled="creating" class="cancel-button">
+                  Cancelar
+                </button>
+                <button @click="savePortfolio" :disabled="creating || !newPortfolio.name.trim()" class="submit-button">
+                  <Loader2 v-if="creating" :size="16" class="spinner" />
+                  <span>{{ creating ? 'Salvando...' : (editingPortfolio ? 'Atualizar' : 'Criar') }}</span>
+                </button>
               </div>
             </div>
+          </div>
+        </Transition>
+      </Teleport>
 
-            <div class="input-group">
-              <label for="quantity">Quantidade</label>
-              <input
-                id="quantity"
-                v-model.number="newPosition.quantity"
-                type="number"
-                min="1"
-                step="1"
-                :disabled="creating"
-              />
-            </div>
+      <!-- Add Position Form Modal -->
+      <Teleport to="body">
+        <Transition name="modal">
+          <div v-if="showAddForm" class="modal-overlay" @click="showAddForm = false">
+            <div class="modal-content" @click.stop>
+              <div class="modal-header">
+                <h2 class="modal-title">Adicionar Nova Posição</h2>
+                <button @click="showAddForm = false" class="modal-close" :disabled="creating">
+                  <X :size="20" />
+                </button>
+              </div>
+              <div class="modal-body">
+                <div class="form-grid">
+                  <div class="input-group">
+                    <label for="ticker">Ticker</label>
+                    <div class="input-wrapper">
+                      <Search :size="20" class="input-icon" />
+                      <input
+                        id="ticker"
+                        v-model="newPosition.ticker"
+                        type="text"
+                        placeholder="Ex: PETR4, AAPL"
+                        :disabled="creating"
+                      />
+                    </div>
+                  </div>
 
-            <div class="input-group">
-              <label for="purchase-price">Preço de Compra (R$)</label>
-              <input
-                id="purchase-price"
-                v-model.number="newPosition.purchase_price"
-                type="number"
-                min="0"
-                step="0.01"
-                :disabled="creating"
-              />
-            </div>
+                  <div class="input-group">
+                    <label for="quantity">Quantidade</label>
+                    <input
+                      id="quantity"
+                      v-model.number="newPosition.quantity"
+                      type="number"
+                      min="1"
+                      step="1"
+                      :disabled="creating"
+                    />
+                  </div>
 
-            <div class="input-group">
-              <label for="purchase-date">Data de Compra</label>
-              <input
-                id="purchase-date"
-                v-model="newPosition.purchase_date"
-                type="date"
-                :disabled="creating"
-              />
+                  <div class="input-group">
+                    <label for="purchase-price">Preço de Compra (R$)</label>
+                    <input
+                      id="purchase-price"
+                      v-model.number="newPosition.purchase_price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      :disabled="creating"
+                    />
+                  </div>
+
+                  <div class="input-group">
+                    <label for="purchase-date">Data de Compra</label>
+                    <input
+                      id="purchase-date"
+                      v-model="newPosition.purchase_date"
+                      type="date"
+                      :disabled="creating"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button @click="showAddForm = false" :disabled="creating" class="cancel-button">
+                  Cancelar
+                </button>
+                <button @click="addPosition" :disabled="creating || !newPosition.ticker.trim()" class="submit-button">
+                  <Loader2 v-if="creating" :size="16" class="spinner" />
+                  <span>{{ creating ? 'Adicionando...' : 'Adicionar Posição' }}</span>
+                </button>
+              </div>
             </div>
           </div>
-
-          <div class="form-actions">
-            <button @click="addPosition" :disabled="creating || !newPosition.ticker.trim()" class="submit-button">
-              <Loader2 v-if="creating" :size="16" class="spinner" />
-              <span>{{ creating ? 'Adicionando...' : 'Adicionar Posição' }}</span>
-            </button>
-            <button @click="showAddForm = false" :disabled="creating" class="cancel-button">
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
+        </Transition>
+      </Teleport>
 
       <!-- Error Message -->
       <div v-if="error" class="error-banner">
@@ -353,12 +716,23 @@ onMounted(async () => {
         <p>Carregando portfólio...</p>
       </div>
 
-      <!-- Empty State -->
+      <!-- Empty State - No Portfolios -->
+      <div v-else-if="portfolios.length === 0" class="empty-state">
+        <FolderPlus :size="64" class="empty-icon" />
+        <h2>Nenhum portfolio criado</h2>
+        <p>Crie seu primeiro portfolio para começar a gerenciar suas posições</p>
+        <button @click="openPortfolioForm()" class="empty-action-button">
+          <FolderPlus :size="20" />
+          <span>Criar Primeiro Portfolio</span>
+        </button>
+      </div>
+
+      <!-- Empty State - No Positions -->
       <div v-else-if="!portfolio || portfolio.positions.length === 0" class="empty-state">
         <BarChart :size="64" class="empty-icon" />
-        <h2>Seu portfólio está vazio</h2>
+        <h2>Este portfólio está vazio</h2>
         <p>Adicione suas primeiras posições para começar a acompanhar seus investimentos</p>
-        <button @click="showAddForm = true" class="empty-action-button">
+        <button @click="showAddForm = true" :disabled="!selectedPortfolioId" class="empty-action-button">
           <Plus :size="20" />
           <span>Adicionar Primeira Posição</span>
         </button>
@@ -562,700 +936,21 @@ onMounted(async () => {
         </div>
       </div>
     </main>
+
+    <!-- Delete Confirmation Modal -->
+    <ConfirmDeleteModal
+      :show="showDeleteModal"
+      title="Confirmar Exclusão"
+      :message="deleteModalMessage"
+      :warning="deleteModalWarning"
+      :loading="deletingPortfolio !== null"
+      @confirm="confirmDeletePortfolio"
+      @cancel="cancelDeletePortfolio"
+    />
   </div>
 </template>
 
 <style scoped>
-.portfolio-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-}
-
-.portfolio-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 60px 20px;
-}
-
-.header-section {
-  margin-bottom: 32px;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.title-group {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: white;
-}
-
-.title-icon {
-  color: white;
-}
-
-.title-group h1 {
-  font-size: 36px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-  color: white;
-}
-
-.subtitle {
-  font-size: 16px;
-  opacity: 0.9;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.add-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: white;
-  color: #3b82f6;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.add-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.stat-header h3 {
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
-  margin: 0;
-}
-
-.stat-icon {
-  color: #3b82f6;
-}
-
-.stat-icon.positive {
-  color: #10b981;
-}
-
-.stat-icon.negative {
-  color: #ef4444;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.stat-value.positive {
-  color: #10b981;
-}
-
-.stat-value.negative {
-  color: #ef4444;
-}
-
-.stat-percentage {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 4px 0 0 0;
-}
-
-.stat-percentage.positive {
-  color: #10b981;
-}
-
-.stat-percentage.negative {
-  color: #ef4444;
-}
-
-/* Add Form */
-.add-form-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f1f5f9;
-}
-
-.form-header h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-
-.close-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  background: #f1f5f9;
-  border: none;
-  border-radius: 8px;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.close-button:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.form-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.input-group label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: 12px;
-  color: #64748b;
-  pointer-events: none;
-}
-
-.input-wrapper input,
-.input-group input,
-.input-group select {
-  width: 100%;
-  padding: 12px 12px 12px 44px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 15px;
-  transition: all 0.2s;
-}
-
-.input-group input[type="number"],
-.input-group input[type="date"] {
-  padding-left: 12px;
-}
-
-.input-wrapper input:focus,
-.input-group input:focus,
-.input-group select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.input-wrapper input:disabled,
-.input-group input:disabled,
-.input-group select:disabled {
-  background: #f8fafc;
-  cursor: not-allowed;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.submit-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.submit-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.cancel-button {
-  padding: 12px 24px;
-  background: #f1f5f9;
-  color: #64748b;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancel-button:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.cancel-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Error Banner */
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: #fee2e2;
-  color: #991b1b;
-  border-radius: 12px;
-  margin-bottom: 24px;
-  border-left: 4px solid #dc2626;
-}
-
-.error-banner span {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.error-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  background: transparent;
-  border: none;
-  color: #991b1b;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.error-close:hover {
-  background: rgba(153, 27, 27, 0.1);
-}
-
-/* Loading State */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  color: white;
-  gap: 16px;
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-container p {
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  color: white;
-}
-
-.empty-icon {
-  margin-bottom: 24px;
-  opacity: 0.8;
-}
-
-.empty-state h2 {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0 0 12px 0;
-}
-
-.empty-state p {
-  font-size: 16px;
-  opacity: 0.9;
-  margin: 0 0 32px 0;
-  max-width: 400px;
-}
-
-.empty-action-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 28px;
-  background: white;
-  color: #3b82f6;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.empty-action-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
-
-/* Portfolio Content */
-.portfolio-content {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.positions-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 24px;
-  font-weight: 700;
-  color: white;
-  margin: 0;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-left: 8px;
-}
-
-.positions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-}
-
-.position-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.position-card.active {
-  border-left: 4px solid #10b981;
-}
-
-.position-card.sold {
-  border-left: 4px solid #64748b;
-  opacity: 0.9;
-}
-
-.position-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
-
-.position-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f1f5f9;
-  gap: 12px;
-}
-
-.position-info {
-  flex: 1;
-}
-
-.position-ticker {
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 8px 0;
-}
-
-.position-meta {
-  font-size: 13px;
-  color: #64748b;
-  display: block;
-}
-
-.position-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.active-badge {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.sold-badge {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.position-details {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.detail-label {
-  color: #64748b;
-  font-weight: 500;
-}
-
-.detail-value {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.detail-value.positive {
-  color: #10b981;
-}
-
-.detail-value.negative {
-  color: #ef4444;
-}
-
-.position-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.action-button,
-.sell-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-button:hover,
-.sell-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.delete-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  background: #fee2e2;
-  color: #dc2626;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.delete-button:hover:not(:disabled) {
-  background: #fecaca;
-  transform: scale(1.05);
-}
-
-.delete-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Sell Form */
-.sell-form {
-  margin-top: 20px;
-  padding: 20px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-}
-
-.sell-form h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0 0 16px 0;
-}
-
-.sell-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.sell-form-actions {
-  display: flex;
-  gap: 12px;
-}
-
-@media (max-width: 768px) {
-  .portfolio-main {
-    padding: 40px 16px;
-  }
-
-  .title-group h1 {
-    font-size: 28px;
-  }
-
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .add-button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .positions-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .position-actions {
-    flex-wrap: wrap;
-  }
-
-  .action-button,
-  .sell-button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .title-group h1 {
-    font-size: 24px;
-  }
-
-  .subtitle {
-    font-size: 14px;
-  }
-}
+@import '../styles/portfolio.css';
 </style>
 

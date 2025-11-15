@@ -8,10 +8,11 @@ COPY package*.json ./
 # Instala dependências
 RUN npm ci
 
-# Copia o código fonte
+# Copia o código fonte (will be overridden by volume mounts in dev)
 COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Run Vite dev server with host binding for Docker
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 

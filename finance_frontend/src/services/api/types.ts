@@ -7,7 +7,6 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string
   username: string
-  full_name?: string
   password: string
 }
 
@@ -20,8 +19,8 @@ export interface User {
   id: number
   email: string
   username: string
-  full_name?: string
   role: 'ADMIN' | 'PRO' | 'USER'
+  subscription_status?: string | null
   created_at?: string
   two_factor_enabled?: boolean
 }
@@ -85,8 +84,35 @@ export interface TickerRequest {
 }
 
 // Portfolio Types
+export interface Portfolio {
+  id: number
+  name: string
+  category?: string | null
+  description?: string | null
+  created_at: string
+  updated_at?: string | null
+  item_count?: number
+}
+
+export interface PortfolioList {
+  portfolios: Portfolio[]
+}
+
+export interface PortfolioCreate {
+  name: string
+  category?: string | null
+  description?: string | null
+}
+
+export interface PortfolioUpdate {
+  name?: string
+  category?: string | null
+  description?: string | null
+}
+
 export interface PortfolioItem {
   id: number
+  portfolio_id: number
   ticker: string
   quantity: number
   purchase_price: number
@@ -108,6 +134,7 @@ export interface PortfolioSummary {
 }
 
 export interface PortfolioItemCreate {
+  portfolio_id: number
   ticker: string
   quantity: number
   purchase_price: number
@@ -174,7 +201,6 @@ export interface PortalSessionResponse {
 export interface UserUpdate {
   email?: string
   username?: string
-  full_name?: string
 }
 
 export interface ChangePasswordRequest {

@@ -2,14 +2,13 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Coins, Check } from 'lucide-vue-next'
+import { Coins, ArrowLeft, Search, LineChart, BarChart } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const email = ref('')
 const username = ref('')
-const fullName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const error = ref('')
@@ -39,6 +38,10 @@ function validateForm(): boolean {
   return true
 }
 
+function goToHome() {
+  router.push('/')
+}
+
 async function handleSubmit() {
   error.value = ''
 
@@ -51,7 +54,6 @@ async function handleSubmit() {
     await authStore.register({
       email: email.value,
       username: username.value,
-      full_name: fullName.value || undefined,
       password: password.value,
     })
     router.push('/home')
@@ -65,6 +67,10 @@ async function handleSubmit() {
 
 <template>
   <div class="register-container">
+    <button @click="goToHome" class="back-button" title="Voltar para a página inicial">
+      <ArrowLeft :size="20" />
+      <span>Voltar</span>
+    </button>
     <div class="register-wrapper">
       <div class="register-left">
         <div class="left-content">
@@ -72,25 +78,25 @@ async function handleSubmit() {
             <Coins :size="64" />
           </div>
           <h1>Comece sua jornada financeira</h1>
-          <p>Junte-se a milhares de investidores que já estão gerenciando seus ativos com inteligência</p>
+          <p>Crie sua conta e tenha acesso a scanner de ações, análise técnica e gestão de portfólio profissional</p>
           <div class="features">
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <Search :size="16" />
               </span>
-              <span>Controle total do seu portfólio</span>
+              <span>Scanner PRO com filtros por RSI, MACD e Bollinger</span>
             </div>
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <LineChart :size="16" />
               </span>
-              <span>Alertas personalizados</span>
+              <span>Análise técnica com 6+ indicadores</span>
             </div>
             <div class="feature-item">
               <span class="feature-icon">
-                <Check :size="16" />
+                <BarChart :size="16" />
               </span>
-              <span>Análise de mercado em tempo real</span>
+              <span>Portfólio com cálculo automático de P&L</span>
             </div>
           </div>
         </div>
@@ -100,7 +106,7 @@ async function handleSubmit() {
         <div class="register-card">
           <div class="register-header">
             <h2>Criar conta</h2>
-            <p>Preencha seus dados abaixo</p>
+            <p>Comece a usar scanner, análise técnica e gestão de portfólio</p>
           </div>
 
           <form @submit.prevent="handleSubmit" class="register-form">
@@ -133,17 +139,6 @@ async function handleSubmit() {
                   autocomplete="username"
                 />
               </div>
-            </div>
-
-            <div class="form-group">
-              <label for="fullName">Nome completo</label>
-              <input
-                id="fullName"
-                v-model="fullName"
-                type="text"
-                placeholder="Seu nome completo"
-                autocomplete="name"
-              />
             </div>
 
             <div class="form-row">
@@ -199,6 +194,34 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.back-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #3b82f6;
+  transform: translateX(-2px);
 }
 
 .register-wrapper {
@@ -226,12 +249,32 @@ async function handleSubmit() {
 .register-left::before {
   content: '';
   position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.3;
+  animation: gridMove 20s linear infinite;
+}
+
+.register-left::after {
+  content: '';
+  position: absolute;
   top: -50%;
   right: -50%;
   width: 200%;
   height: 200%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
   animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes gridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
 }
 
 @keyframes pulse {
@@ -297,16 +340,23 @@ async function handleSubmit() {
 }
 
 .feature-icon {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   flex-shrink: 0;
   color: white;
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover .feature-icon {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1) rotate(5deg);
 }
 
 .register-right {
@@ -464,12 +514,7 @@ async function handleSubmit() {
   }
 
   .register-left {
-    padding: 40px 30px;
-    min-height: 300px;
-  }
-
-  .register-left h1 {
-    font-size: 24px;
+    display: none;
   }
 
   .register-right {
@@ -482,13 +527,20 @@ async function handleSubmit() {
     padding: 0;
   }
 
+  .back-button {
+    top: 12px;
+    left: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .back-button span {
+    display: none;
+  }
+
   .register-wrapper {
     border-radius: 0;
     min-height: 100vh;
-  }
-
-  .register-left {
-    padding: 30px 20px;
   }
 
   .register-right {
@@ -501,10 +553,6 @@ async function handleSubmit() {
 
   .register-header h2 {
     font-size: 24px;
-  }
-
-  .logo {
-    font-size: 48px;
   }
 }
 </style>
