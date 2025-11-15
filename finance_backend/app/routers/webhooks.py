@@ -69,138 +69,158 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
 def handle_subscription_created(event: dict, db: Session):
     """Processa criação de assinatura."""
-    subscription = event["data"]["object"]
-    customer_id = subscription["customer"]
-    
-    user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-    if not user:
-        logger.warning(f"User not found for customer_id: {customer_id}")
-        return
-    
-    # Atualizar usuário para PRO
-    user.role = UserRole.PRO
-    user.subscription_status = subscription["status"]
-    db.commit()
-    logger.info(f"User {user.id} upgraded to PRO (subscription created)")
-    
-    # Criar notificação
-    create_notification(
-        db=db,
-        user_id=user.id,
-        notification_type=NotificationType.SUBSCRIPTION_UPDATE,
-        title="🎉 Assinatura PRO Ativada!",
-        message="Sua assinatura PRO foi ativada com sucesso. Aproveite todos os recursos!",
-        data={"subscription_status": subscription["status"]},
-        send_push=True
-    )
+    try:
+        subscription = event["data"]["object"]
+        customer_id = subscription["customer"]
+        
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if not user:
+            logger.warning(f"User not found for customer_id: {customer_id}")
+            return
+        
+        # Atualizar usuário para PRO
+        user.role = UserRole.PRO
+        user.subscription_status = subscription["status"]
+        db.commit()
+        logger.info(f"User {user.id} upgraded to PRO (subscription created)")
+        
+        # Criar notificação
+        create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+            title="🎉 Assinatura PRO Ativada!",
+            message="Sua assinatura PRO foi ativada com sucesso. Aproveite todos os recursos!",
+            data={"subscription_status": subscription["status"]},
+            send_push=True
+        )
+    except Exception as e:
+        logger.error(f"Error handling subscription created: {e}")
+        db.rollback()
+        raise
 
 
 def handle_subscription_updated(event: dict, db: Session):
     """Processa atualização de assinatura."""
-    subscription = event["data"]["object"]
-    customer_id = subscription["customer"]
-    
-    user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-    if not user:
-        logger.warning(f"User not found for customer_id: {customer_id}")
-        return
-    
-    # Atualizar status da assinatura
-    subscription_status = subscription["status"]
-    user.subscription_status = subscription_status
-    
-    # Se assinatura cancelada ou expirada, rebaixar para USER
-    if subscription_status in ["canceled", "unpaid", "past_due"]:
-        user.role = UserRole.USER
-        logger.info(f"User {user.id} downgraded to USER (subscription {subscription_status})")
+    try:
+        subscription = event["data"]["object"]
+        customer_id = subscription["customer"]
         
-        # Criar notificação
-        create_notification(
-            db=db,
-            user_id=user.id,
-            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
-            title="⚠️ Assinatura Cancelada",
-            message=f"Sua assinatura PRO foi cancelada. Status: {subscription_status}",
-            data={"subscription_status": subscription_status},
-            send_push=True
-        )
-    elif subscription_status == "active":
-        user.role = UserRole.PRO
-        logger.info(f"User {user.id} subscription active (PRO)")
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if not user:
+            logger.warning(f"User not found for customer_id: {customer_id}")
+            return
         
-        # Criar notificação
-        create_notification(
-            db=db,
-            user_id=user.id,
-            notification_type=NotificationType.SUBSCRIPTION_UPDATE,
-            title="✅ Assinatura Reativada",
-            message="Sua assinatura PRO foi reativada com sucesso!",
-            data={"subscription_status": subscription_status},
-            send_push=True
-        )
-    
-    db.commit()
+        # Atualizar status da assinatura
+        subscription_status = subscription["status"]
+        user.subscription_status = subscription_status
+        
+        # Se assinatura cancelada ou expirada, rebaixar para USER
+        if subscription_status in ["canceled", "unpaid", "past_due"]:
+            user.role = UserRole.USER
+            logger.info(f"User {user.id} downgraded to USER (subscription {subscription_status})")
+            
+            # Criar notificação
+            create_notification(
+                db=db,
+                user_id=user.id,
+                notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+                title="⚠️ Assinatura Cancelada",
+                message=f"Sua assinatura PRO foi cancelada. Status: {subscription_status}",
+                data={"subscription_status": subscription_status},
+                send_push=True
+            )
+        elif subscription_status == "active":
+            user.role = UserRole.PRO
+            logger.info(f"User {user.id} subscription active (PRO)")
+            
+            # Criar notificação
+            create_notification(
+                db=db,
+                user_id=user.id,
+                notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+                title="✅ Assinatura Reativada",
+                message="Sua assinatura PRO foi reativada com sucesso!",
+                data={"subscription_status": subscription_status},
+                send_push=True
+            )
+        
+        db.commit()
+    except Exception as e:
+        logger.error(f"Error handling subscription updated: {e}")
+        db.rollback()
+        raise
 
 
 def handle_subscription_deleted(event: dict, db: Session):
     """Processa cancelamento de assinatura."""
-    subscription = event["data"]["object"]
-    customer_id = subscription["customer"]
-    
-    user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-    if not user:
-        logger.warning(f"User not found for customer_id: {customer_id}")
-        return
-    
-    # Rebaixar para USER
-    user.role = UserRole.USER
-    user.subscription_status = "canceled"
-    db.commit()
-    logger.info(f"User {user.id} downgraded to USER (subscription deleted)")
-    
-    # Criar notificação
-    create_notification(
-        db=db,
-        user_id=user.id,
-        notification_type=NotificationType.SUBSCRIPTION_UPDATE,
-        title="❌ Assinatura Cancelada",
-        message="Sua assinatura PRO foi cancelada. Você ainda pode fazer upgrade a qualquer momento.",
-        data={"subscription_status": "canceled"},
-        send_push=True
-    )
-
-
-def handle_checkout_completed(event: dict, db: Session):
-    """Processa conclusão do checkout."""
-    session = event["data"]["object"]
-    customer_id = session.get("customer")
-    
-    if not customer_id:
-        logger.warning("No customer_id in checkout session")
-        return
-    
-    user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
-    if not user:
-        logger.warning(f"User not found for customer_id: {customer_id}")
-        return
-    
-    # Se já não for PRO, atualizar
-    if user.role != UserRole.PRO:
-        user.role = UserRole.PRO
-        user.subscription_status = "active"
+    try:
+        subscription = event["data"]["object"]
+        customer_id = subscription["customer"]
+        
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if not user:
+            logger.warning(f"User not found for customer_id: {customer_id}")
+            return
+        
+        # Rebaixar para USER
+        user.role = UserRole.USER
+        user.subscription_status = "canceled"
         db.commit()
-        logger.info(f"User {user.id} upgraded to PRO (checkout completed)")
+        logger.info(f"User {user.id} downgraded to USER (subscription deleted)")
         
         # Criar notificação
         create_notification(
             db=db,
             user_id=user.id,
             notification_type=NotificationType.SUBSCRIPTION_UPDATE,
-            title="🎉 Bem-vindo ao PRO!",
-            message="Pagamento confirmado! Sua assinatura PRO está ativa.",
-            data={"subscription_status": "active"},
+            title="❌ Assinatura Cancelada",
+            message="Sua assinatura PRO foi cancelada. Você ainda pode fazer upgrade a qualquer momento.",
+            data={"subscription_status": "canceled"},
             send_push=True
         )
+    except Exception as e:
+        logger.error(f"Error handling subscription deleted: {e}")
+        db.rollback()
+        raise
+
+
+def handle_checkout_completed(event: dict, db: Session):
+    """Processa conclusão do checkout."""
+    try:
+        session = event["data"]["object"]
+        customer_id = session.get("customer")
+        
+        if not customer_id:
+            logger.warning("No customer_id in checkout session")
+            return
+        
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if not user:
+            logger.warning(f"User not found for customer_id: {customer_id}")
+            return
+        
+        # Se já não for PRO, atualizar
+        if user.role != UserRole.PRO:
+            user.role = UserRole.PRO
+            user.subscription_status = "active"
+            db.commit()
+            logger.info(f"User {user.id} upgraded to PRO (checkout completed)")
+            
+            # Criar notificação
+            create_notification(
+                db=db,
+                user_id=user.id,
+                notification_type=NotificationType.SUBSCRIPTION_UPDATE,
+                title="🎉 Bem-vindo ao PRO!",
+                message="Pagamento confirmado! Sua assinatura PRO está ativa.",
+                data={"subscription_status": "active"},
+                send_push=True
+            )
+    except Exception as e:
+        logger.error(f"Error handling checkout completed: {e}")
+        db.rollback()
+        raise
 
 
 

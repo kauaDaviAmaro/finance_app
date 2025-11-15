@@ -313,6 +313,18 @@ export async function deleteUser(id: number): Promise<void> {
   }
 }
 
+export async function changeMyRole(role: 'ADMIN' | 'PRO' | 'USER'): Promise<UserAdmin> {
+  try {
+    const response = await apiClient.post<UserAdmin>('/admin/change-my-role', { role })
+    return response.data
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error
+    }
+    throw new ApiError(0, 'Erro ao mudar role')
+  }
+}
+
 // ============================================================================
 // ALERTS
 // ============================================================================

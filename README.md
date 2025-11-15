@@ -37,6 +37,14 @@ A comprehensive financial management application for tracking investments, monit
 - Active/inactive alert management
 - Automatic alert triggering
 
+### Subscriptions (Stripe Integration)
+- PRO subscription plan with Stripe Checkout
+- Secure payment processing
+- Customer Portal for subscription management
+- Automatic subscription status updates via webhooks
+- Cancel or update subscriptions through Stripe Customer Portal
+- Email and push notifications for subscription events
+
 ### Dashboard
 - Portfolio overview with key metrics
 - Visual charts for P&L distribution
@@ -540,6 +548,35 @@ The backend is ready for production when running in Docker. For standalone deplo
 - `PATCH /alerts/{alert_id}/toggle` - Toggle alert active status
 - `DELETE /alerts/{alert_id}` - Delete alert
 
+### Subscription
+- `POST /subscription/create-checkout-session` - Create Stripe checkout session
+- `GET /subscription/status` - Get subscription status
+- `GET /subscription/me` - Get current user subscription info
+- `POST /subscription/cancel` - Create Customer Portal session for subscription management
+
+### Webhooks
+- `POST /webhooks/stripe` - Stripe webhook endpoint for subscription events
+
+## Stripe Configuration
+
+This application uses Stripe for subscription management. To set up Stripe:
+
+1. **Read the complete setup guide**: See [STRIPE_SETUP.md](STRIPE_SETUP.md) for detailed instructions
+2. **Configure environment variables**: Add Stripe keys to your `.env` file (see Environment Variables below)
+3. **Set up Stripe Dashboard**: Create products, configure Customer Portal, and set up webhooks
+4. **Test the integration**: Use Stripe test mode and test cards before going live
+
+Quick setup checklist:
+- [ ] Create Stripe account
+- [ ] Get API keys (test mode for development)
+- [ ] Create product and price in Stripe Dashboard
+- [ ] Configure Customer Portal
+- [ ] Set up webhook endpoint
+- [ ] Add environment variables to `.env`
+- [ ] Test checkout and cancellation flow
+
+For detailed step-by-step instructions, see [STRIPE_SETUP.md](STRIPE_SETUP.md).
+
 ## Environment Variables
 
 ### Backend
@@ -560,6 +597,12 @@ The backend is ready for production when running in Docker. For standalone deplo
 - `SMTP_PASSWORD` - SMTP password
 - `EMAILS_FROM_EMAIL` - Email sender address
 - `EMAILS_FROM_NAME` - Email sender name
+- `STRIPE_SECRET_KEY` - Stripe secret API key (starts with `sk_test_` for test mode, `sk_live_` for production)
+- `STRIPE_PRICE_ID_PRO` - Stripe Price ID for PRO subscription plan (starts with `price_`)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret (starts with `whsec_`)
+- `STRIPE_SUCCESS_URL` - URL to redirect after successful checkout (e.g., `http://localhost:3000/subscription/success`)
+- `STRIPE_CANCEL_URL` - URL to redirect if checkout is cancelled (e.g., `http://localhost:3000/subscription/cancel`)
+- `STRIPE_RETURN_URL` - URL to return to after Customer Portal session (e.g., `http://localhost:3000/subscription`)
 
 ### Frontend
 

@@ -23,6 +23,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     role = Column(SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.USER)
+    can_be_admin = Column(Boolean, default=True, nullable=False)  # Se False, usuário não pode voltar a ser admin
     stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
     subscription_status = Column(String(50), nullable=True, default="inactive")
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -116,6 +116,15 @@ def create_portal_session(
 ):
     """
     Cria uma sessão do Customer Portal do Stripe para gerenciar a assinatura.
+    
+    O Customer Portal permite que o usuário:
+    - Cancele a assinatura
+    - Atualize o método de pagamento
+    - Atualize informações de cobrança
+    - Veja histórico de pagamentos
+    
+    O cancelamento real é feito pelo usuário no portal do Stripe, que então
+    dispara um webhook que atualiza o status no banco de dados.
     """
     if not settings.STRIPE_SECRET_KEY:
         raise HTTPException(
@@ -127,6 +136,13 @@ def create_portal_session(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Usuário não possui assinatura ativa"
+        )
+    
+    # Verificar se o usuário tem uma assinatura ativa
+    if current_user.role != UserRole.PRO:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuário não possui assinatura PRO ativa"
         )
     
     try:

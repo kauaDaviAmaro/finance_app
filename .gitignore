@@ -1,0 +1,48 @@
+# Root level .gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+todo.txt
+todo.md
+
+# Docker
+.dockerignore
+
+# Database backups
+*.sql.backup
+*.dump
+
+# Coverage reports
+coverage/
+.nyc_output/
+htmlcov/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+

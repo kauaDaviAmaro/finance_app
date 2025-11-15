@@ -4,7 +4,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationsStore } from '../stores/notifications'
 import type { Notification } from '../services/api/notifications.api'
-import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign, Crown, HelpCircle, ChevronDown, CheckCircle, Trash2, AlertCircle, MessageSquare, CreditCard } from 'lucide-vue-next'
+import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign, Crown, HelpCircle, ChevronDown, CheckCircle, Trash2, AlertCircle, MessageSquare, CreditCard, Settings } from 'lucide-vue-next'
+import { changeMyRole } from '../services/api/admin.api'
 
 const router = useRouter()
 const route = useRoute()
@@ -13,7 +14,9 @@ const notificationsStore = useNotificationsStore()
 const showMobileMenu = ref(false)
 const showUserMenu = ref(false)
 const showNotifications = ref(false)
+const showRoleMenu = ref(false)
 const openGroup = ref<string | null>(null)
+const changingRole = ref(false)
 let notificationsInterval: ReturnType<typeof setInterval> | null = null
 
 const isGroupActive = (groupName: string) => {
@@ -30,7 +33,28 @@ const isPro = computed(() => {
   return authStore.user?.role === 'PRO' || authStore.user?.role === 'ADMIN'
 })
 
+const canChangeRole = computed(() => {
+  // Sempre permitir se for admin
+  return authStore.isAuthenticated && authStore.user?.role === 'ADMIN'
+})
+
+const wasAdmin = computed(() => {
+  // Verificar se já foi admin (armazenado no localStorage ou se é admin agora)
+  if (authStore.user?.role === 'ADMIN') {
+    localStorage.setItem('was_admin', 'true')
+    return true
+  }
+  return localStorage.getItem('was_admin') === 'true'
+})
+
+const showRoleButton = computed(() => {
+  // Mostrar botão se for admin ou se já foi admin antes
+  return authStore.isAuthenticated && (authStore.user?.role === 'ADMIN' || wasAdmin.value)
+})
+
 function handleLogout() {
+  // Limpar flag de admin ao fazer logout
+  localStorage.removeItem('was_admin')
   authStore.logout()
   router.push('/login')
 }
@@ -55,6 +79,29 @@ function closeMenus() {
   showUserMenu.value = false
   openGroup.value = null
   showNotifications.value = false
+  showRoleMenu.value = false
+}
+
+function toggleRoleMenu() {
+  showRoleMenu.value = !showRoleMenu.value
+}
+
+async function handleRoleChange(newRole: 'ADMIN' | 'PRO' | 'USER') {
+  if (changingRole.value || authStore.user?.role === newRole) {
+    return
+  }
+  
+  try {
+    changingRole.value = true
+    await changeMyRole(newRole)
+    await authStore.fetchUser()
+    showRoleMenu.value = false
+  } catch (error: any) {
+    console.error('Erro ao mudar role:', error)
+    alert(error.message || 'Erro ao mudar tier')
+  } finally {
+    changingRole.value = false
+  }
 }
 
 function toggleNotifications() {
@@ -74,7 +121,7 @@ async function loadNotifications() {
 
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (!target.closest('.user-menu-group') && !target.closest('.nav-group') && !target.closest('.notifications-group')) {
+  if (!target.closest('.user-menu-group') && !target.closest('.nav-group') && !target.closest('.notifications-group') && !target.closest('.role-menu-group')) {
     closeMenus()
   }
 }
@@ -285,8 +332,59 @@ onUnmounted(() => {
           <BarChart :size="16" />
           <span>Admin</span>
         </router-link>
+        <div v-if="showRoleButton" class="role-menu-group">
+          <button @click="toggleRoleMenu" class="role-button" :class="{ active: showRoleMenu }" title="Mudar Tier">
+            <Crown :size="16" />
+            <span>{{ authStore.user?.role }}</span>
+            <ChevronDown :size="14" class="chevron" :class="{ rotated: showRoleMenu }" />
+          </button>
+          <div v-if="showRoleMenu" class="role-dropdown" @click.stop>
+            <div class="role-dropdown-header">
+              <Settings :size="16" />
+              <span>Mudar Tier</span>
+            </div>
+            <div class="role-dropdown-divider"></div>
+            <button 
+              @click="handleRoleChange('ADMIN')" 
+              class="role-dropdown-item" 
+              :class="{ active: authStore.user?.role === 'ADMIN' }"
+              :disabled="changingRole || authStore.user?.role === 'ADMIN'"
+            >
+              <Crown :size="16" />
+              <span>ADMIN</span>
+              <CheckCircle v-if="authStore.user?.role === 'ADMIN'" :size="14" />
+            </button>
+            <div v-if="!canChangeRole" class="role-dropdown-note">
+              <span style="font-size: 12px; color: #94a3b8; padding: 8px 12px;">
+                Apenas ADMIN pode mudar para outros tiers
+              </span>
+            </div>
+            <button 
+              v-if="canChangeRole"
+              @click="handleRoleChange('PRO')" 
+              class="role-dropdown-item" 
+              :class="{ active: authStore.user?.role === 'PRO' }"
+              :disabled="changingRole || authStore.user?.role === 'PRO'"
+            >
+              <Crown :size="16" />
+              <span>PRO</span>
+              <CheckCircle v-if="authStore.user?.role === 'PRO'" :size="14" />
+            </button>
+            <button 
+              v-if="canChangeRole"
+              @click="handleRoleChange('USER')" 
+              class="role-dropdown-item" 
+              :class="{ active: authStore.user?.role === 'USER' }"
+              :disabled="changingRole || authStore.user?.role === 'USER'"
+            >
+              <User :size="16" />
+              <span>USER</span>
+              <CheckCircle v-if="authStore.user?.role === 'USER'" :size="14" />
+            </button>
+          </div>
+        </div>
         <router-link 
-          v-if="!isPro" 
+          v-else-if="!isPro" 
           to="/subscription" 
           class="pro-link"
           title="Upgrade para PRO"
@@ -1199,6 +1297,103 @@ onUnmounted(() => {
   .notifications-dropdown {
     width: 320px;
     right: -20px;
+  }
+}
+
+.role-menu-group {
+  position: relative;
+}
+
+.role-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.role-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.role-button.active {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+.role-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 200px;
+  padding: 8px;
+  z-index: 1000;
+}
+
+.role-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.role-dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.role-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  justify-content: space-between;
+}
+
+.role-dropdown-item:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #3b82f6;
+}
+
+.role-dropdown-item.active {
+  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+  color: white;
+}
+
+.role-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .role-button span {
+    display: none;
   }
 }
 </style>
