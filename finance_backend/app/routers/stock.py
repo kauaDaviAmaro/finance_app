@@ -3,20 +3,22 @@ from app.schemas.stock import (
     TickerRequest, TickerHistoricalDataOut, TechnicalAnalysisOut, FundamentalsOut,
     TickerComparisonRequest, TickerComparisonOut,
     FinancialStatementsOut, IncomeStatementOut, BalanceSheetOut, CashFlowOut,
-    FinancialStatementRow
+    FinancialStatementRow, AdvancedAnalysisOut, ElliottAnnotationIn, ElliottAnnotationOut,
+    SupportResistanceLevel, ChartPattern, CandlestickPattern, ElliottWaves, ElliottWavePoint
 )
 from app.core.market_service import (
     get_historical_data, get_technical_analysis, get_company_fundamentals,
     get_income_statement, get_balance_sheet, get_cashflow
 )
+from app.core.market.pattern_analysis import get_advanced_analysis
 from app.core.security import get_current_user, get_pro_user
-from app.db.models import User, DailyScanResult, TickerSearch
+from app.db.models import User, DailyScanResult, TickerSearch, ElliottAnnotation
 from app.db.database import get_db
 from app.core.market.ticker_utils import format_ticker
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional, Literal, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/stocks", tags=["Stocks Analysis"])
 
@@ -448,4 +450,210 @@ def compare_tickers(
         raise HTTPException(
             status_code=500,
             detail=f"Erro no servidor ao comparar tickers: {e}"
+        )
+
+
+@router.post("/advanced-analysis", response_model=AdvancedAnalysisOut)
+def fetch_advanced_analysis(
+    payload: TickerRequest,
+    current_user: User = Depends(get_pro_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint PRO: Busca análise técnica avançada incluindo padrões gráficos,
+    suporte/resistência, padrões de candlestick, retrações de Fibonacci e ondas de Elliott.
+    """
+    try:
+        analysis = get_advanced_analysis(payload.ticker, payload.period)
+        
+        if not analysis:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nenhum dado encontrado para o ticker: {payload.ticker}"
+            )
+        
+        # Registrar pesquisa
+        log_ticker_search(payload.ticker, current_user.id, db)
+        
+        # Converter para schemas Pydantic
+        support_levels = [
+            SupportResistanceLevel(**level) for level in analysis['support_levels']
+        ]
+        resistance_levels = [
+            SupportResistanceLevel(**level) for level in analysis['resistance_levels']
+        ]
+        patterns = [
+            ChartPattern(**pattern) for pattern in analysis['patterns']
+        ]
+        candlestick_patterns = [
+            CandlestickPattern(**pattern) for pattern in analysis['candlestick_patterns']
+        ]
+        
+        # Converter ondas de Elliott
+        elliott_waves_data = analysis['elliott_waves']
+        elliott_waves = ElliottWaves(
+            pattern_type=elliott_waves_data.get('pattern_type'),
+            waves=[
+                ElliottWavePoint(**wave) for wave in elliott_waves_data.get('waves', [])
+            ],
+            confidence=elliott_waves_data.get('confidence', 0.0),
+            wave_labels=elliott_waves_data.get('wave_labels')
+        )
+        
+        return AdvancedAnalysisOut(
+            ticker=analysis['ticker'],
+            period=analysis['period'],
+            patterns=patterns,
+            support_levels=support_levels,
+            resistance_levels=resistance_levels,
+            candlestick_patterns=candlestick_patterns,
+            fibonacci_levels=analysis['fibonacci_levels'],
+            elliott_waves=elliott_waves
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no servidor ao buscar análise avançada: {e}"
+        )
+
+
+@router.post("/elliott-annotations", response_model=ElliottAnnotationOut)
+def save_elliott_annotations(
+    payload: ElliottAnnotationIn,
+    current_user: User = Depends(get_pro_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint PRO: Salva anotações manuais de ondas de Elliott.
+    """
+    try:
+        formatted_ticker = format_ticker(payload.ticker)
+        
+        # Verificar se já existe anotação para este ticker/periodo
+        existing = db.query(ElliottAnnotation).filter(
+            ElliottAnnotation.user_id == current_user.id,
+            ElliottAnnotation.ticker == formatted_ticker,
+            ElliottAnnotation.period == payload.period
+        ).first()
+        
+        annotations_data = [ann.dict() for ann in payload.annotations]
+        
+        if existing:
+            # Atualizar existente
+            existing.annotations = annotations_data
+            existing.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(existing)
+        else:
+            # Criar novo
+            annotation = ElliottAnnotation(
+                user_id=current_user.id,
+                ticker=formatted_ticker,
+                period=payload.period,
+                annotations=annotations_data
+            )
+            db.add(annotation)
+            db.commit()
+            db.refresh(annotation)
+            existing = annotation
+        
+        return ElliottAnnotationOut(
+            id=existing.id,
+            ticker=existing.ticker,
+            period=existing.period,
+            annotations=payload.annotations,
+            created_at=existing.created_at.isoformat() if existing.created_at else None,
+            updated_at=existing.updated_at.isoformat() if existing.updated_at else None
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao salvar anotações: {e}"
+        )
+
+
+@router.get("/elliott-annotations/{ticker}", response_model=Optional[ElliottAnnotationOut])
+def get_elliott_annotations(
+    ticker: str,
+    period: str = Query(default="1y", description="Período dos dados"),
+    current_user: User = Depends(get_pro_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint PRO: Busca anotações manuais de ondas de Elliott salvas.
+    """
+    try:
+        formatted_ticker = format_ticker(ticker)
+        
+        annotation = db.query(ElliottAnnotation).filter(
+            ElliottAnnotation.user_id == current_user.id,
+            ElliottAnnotation.ticker == formatted_ticker,
+            ElliottAnnotation.period == period
+        ).first()
+        
+        if not annotation:
+            return None
+        
+        # Converter annotations de dict para WavePoint
+        from app.schemas.stock import WavePoint
+        wave_points = [WavePoint(**ann) for ann in annotation.annotations]
+        
+        return ElliottAnnotationOut(
+            id=annotation.id,
+            ticker=annotation.ticker,
+            period=annotation.period,
+            annotations=wave_points,
+            created_at=annotation.created_at.isoformat() if annotation.created_at else None,
+            updated_at=annotation.updated_at.isoformat() if annotation.updated_at else None
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar anotações: {e}"
+        )
+
+
+@router.delete("/elliott-annotations/{ticker}")
+def delete_elliott_annotations(
+    ticker: str,
+    period: str = Query(default="1y", description="Período dos dados"),
+    current_user: User = Depends(get_pro_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint PRO: Deleta anotações manuais de ondas de Elliott.
+    """
+    try:
+        formatted_ticker = format_ticker(ticker)
+        
+        annotation = db.query(ElliottAnnotation).filter(
+            ElliottAnnotation.user_id == current_user.id,
+            ElliottAnnotation.ticker == formatted_ticker,
+            ElliottAnnotation.period == period
+        ).first()
+        
+        if not annotation:
+            raise HTTPException(
+                status_code=404,
+                detail="Anotações não encontradas"
+            )
+        
+        db.delete(annotation)
+        db.commit()
+        
+        return {"message": "Anotações deletadas com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao deletar anotações: {e}"
         )

@@ -98,3 +98,95 @@ class FinancialStatementsOut(BaseModel):
     income_statement: IncomeStatementOut
     balance_sheet: BalanceSheetOut
     cash_flow: CashFlowOut
+
+
+# Advanced Analysis Schemas
+class SupportResistanceLevel(BaseModel):
+    price: float
+    strength: float
+    test_count: int
+    distance_from_current: float
+
+
+class ChartPattern(BaseModel):
+    pattern_type: str
+    pattern_name: str
+    start_date: str
+    end_date: str
+    confidence: float
+    head_price: Optional[float] = None
+    neckline: Optional[float] = None
+    top_price: Optional[float] = None
+    bottom_price: Optional[float] = None
+    valley: Optional[float] = None
+    peak: Optional[float] = None
+    trend: Optional[str] = None
+
+
+class CandlestickPattern(BaseModel):
+    pattern_name: str
+    pattern_type: str
+    date: str
+    signal: str  # BULLISH, BEARISH, NEUTRAL
+    price: float
+
+
+class FibonacciLevels(BaseModel):
+    swing_high: float
+    swing_low: float
+    level_0: float
+    level_236: float
+    level_382: float
+    level_500: float
+    level_618: float
+    level_786: float
+    level_1000: float
+    level_1272: Optional[float] = None
+    level_1618: Optional[float] = None
+
+
+class ElliottWavePoint(BaseModel):
+    wave: str
+    date: str
+    price: float
+    index: int
+
+
+class ElliottWaves(BaseModel):
+    pattern_type: Optional[str] = None
+    waves: List[ElliottWavePoint]
+    confidence: float
+    wave_labels: Optional[List[str]] = None
+
+
+class AdvancedAnalysisOut(BaseModel):
+    ticker: str
+    period: str
+    patterns: List[ChartPattern]
+    support_levels: List[SupportResistanceLevel]
+    resistance_levels: List[SupportResistanceLevel]
+    candlestick_patterns: List[CandlestickPattern]
+    fibonacci_levels: Dict[str, float]
+    elliott_waves: ElliottWaves
+
+
+# Elliott Annotation Schemas
+class WavePoint(BaseModel):
+    wave: str
+    date: str
+    price: float
+
+
+class ElliottAnnotationIn(BaseModel):
+    ticker: str
+    period: str
+    annotations: List[WavePoint]
+
+
+class ElliottAnnotationOut(BaseModel):
+    id: int
+    ticker: str
+    period: str
+    annotations: List[WavePoint]
+    created_at: str
+    updated_at: Optional[str] = None

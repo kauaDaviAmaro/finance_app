@@ -22,7 +22,7 @@ let notificationsInterval: ReturnType<typeof setInterval> | null = null
 const isGroupActive = (groupName: string) => {
   const groups: Record<string, string[]> = {
     investimentos: ['/home', '/portfolio', '/watchlist'],
-    analise: ['/market-analysis', '/compare', '/scanner', '/backtesting', '/paper-trading'],
+    analise: ['/market-analysis', '/compare', '/scanner', '/backtesting', '/paper-trading', '/advanced-analysis'],
     alertas: ['/alerts'],
     ajuda: ['/support']
   }
@@ -303,6 +303,10 @@ onUnmounted(() => {
                 <Crown :size="16" />
             <span>Paper Trading (PRO)</span>
           </router-link>
+              <router-link v-if="isPro" to="/advanced-analysis" class="dropdown-item" @click="closeMenus">
+                <Crown :size="16" />
+            <span>Análise Avançada (PRO)</span>
+          </router-link>
             </div>
           </div>
           
@@ -548,6 +552,10 @@ onUnmounted(() => {
         <router-link v-if="isPro" to="/paper-trading" class="mobile-nav-link" aria-label="Paper Trading (PRO)">
           <Crown :size="20" />
           <span>Paper Trading (PRO)</span>
+        </router-link>
+        <router-link v-if="isPro" to="/advanced-analysis" class="mobile-nav-link" aria-label="Análise Avançada (PRO)">
+          <Crown :size="20" />
+          <span>Análise Avançada (PRO)</span>
         </router-link>
         <router-link to="/support" class="mobile-nav-link" aria-label="Suporte">
           <HelpCircle :size="20" />

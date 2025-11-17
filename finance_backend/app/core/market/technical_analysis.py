@@ -4,23 +4,68 @@ Módulo para cálculo de indicadores técnicos.
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import pandas_ta as ta
 from typing import Optional, Literal
 
 from app.core.market.ticker_utils import format_ticker
 from app.core.market.data_fetcher import get_company_fundamentals
+from app.core.market.indicators.rsi import calculate_rsi
+from app.core.market.indicators.macd import calculate_macd
+from app.core.market.indicators.moving_averages import calculate_moving_averages, detect_moving_average_cross
+from app.core.market.indicators.bollinger_bands import calculate_bollinger_bands
+from app.core.market.indicators.other import calculate_atr, calculate_obv, calculate_stochastic
+from app.core.redis_cache import get_cached_dataframe, set_cached_dataframe
 
 
-def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
+def _fetch_historical_data_from_yfinance(ticker: str, period: str = "1y") -> pd.DataFrame:
     """
-    Busca dados históricos de um ticker e calcula indicadores técnicos:
-    MACD, Stochastic, ATR, Bollinger Bands, OBV, RSI.
+    Busca dados históricos diretamente do yfinance (sem cache).
     """
     formatted_ticker = format_ticker(ticker)
     
     try:
         stock = yf.Ticker(formatted_ticker)
         data: pd.DataFrame = stock.history(period=period)
+        
+        if data.empty:
+            return pd.DataFrame()
+        
+        return data
+    except Exception as e:
+        print(f"Erro ao buscar dados do ticker {formatted_ticker}: {e}")
+        raise
+
+
+def _get_historical_data_with_cache(ticker: str, period: str = "1y") -> pd.DataFrame:
+    """
+    Busca dados históricos com cache Redis.
+    """
+    formatted_ticker = format_ticker(ticker)
+    cache_key = f"yfinance:historical:{formatted_ticker}:{period}"
+    
+    # 1. TENTA BUSCAR NO CACHE
+    data = get_cached_dataframe(cache_key)
+    
+    # 2. NÃO ACHOU NO CACHE? BUSCA NA API (E SALVA)
+    if data is None or data.empty:
+        print(f"📡 CACHE MISS: Ticker {formatted_ticker} (period={period}). Buscando no yfinance...")
+        data = _fetch_historical_data_from_yfinance(ticker, period)
+        
+        if data is not None and not data.empty:
+            set_cached_dataframe(cache_key, data)
+    
+    return data if data is not None else pd.DataFrame()
+
+
+def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
+    """
+    Busca dados históricos de um ticker e calcula indicadores técnicos:
+    MACD, Stochastic, ATR, Bollinger Bands, OBV, RSI.
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
+    """
+    formatted_ticker = format_ticker(ticker)
+    
+    try:
+        data = _get_historical_data_with_cache(ticker, period)
         
         if data.empty:
             return []
@@ -37,29 +82,34 @@ def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
             'Stock Splits': 'stock_splits'
         }, inplace=True)
         
-        # Calcular indicadores técnicos usando pandas-ta
+        # Calcular indicadores técnicos usando módulos separados
         try:
             # MACD (12, 26, 9)
-            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
+            macd = calculate_macd(data, fast=12, slow=26, signal=9)
             if macd is not None and not macd.empty:
-                data['MACD_12_26_9'] = macd['MACD_12_26_9']
-                data['MACDh_12_26_9'] = macd['MACDh_12_26_9']
-                data['MACDs_12_26_9'] = macd['MACDs_12_26_9']
+                if 'MACD_12_26_9' in macd.columns:
+                    data['MACD_12_26_9'] = macd['MACD_12_26_9']
+                if 'MACDh_12_26_9' in macd.columns:
+                    data['MACDh_12_26_9'] = macd['MACDh_12_26_9']
+                if 'MACDs_12_26_9' in macd.columns:
+                    data['MACDs_12_26_9'] = macd['MACDs_12_26_9']
         except Exception:
             pass
         
         try:
             # Stochastic Oscillator (14, 3, 3)
-            stoch = ta.stoch(data['high'], data['low'], data['close'], k=14, d=3, smooth_k=3)
+            stoch = calculate_stochastic(data, k=14, d=3, smooth_k=3)
             if stoch is not None and not stoch.empty:
-                data['STOCHk_14_3_3'] = stoch['STOCHk_14_3_3']
-                data['STOCHd_14_3_3'] = stoch['STOCHd_14_3_3']
+                if 'STOCHk_14_3_3' in stoch.columns:
+                    data['STOCHk_14_3_3'] = stoch['STOCHk_14_3_3']
+                if 'STOCHd_14_3_3' in stoch.columns:
+                    data['STOCHd_14_3_3'] = stoch['STOCHd_14_3_3']
         except Exception:
             pass
         
         try:
             # ATR (14)
-            atr = ta.atr(data['high'], data['low'], data['close'], length=14)
+            atr = calculate_atr(data, length=14)
             if atr is not None and not atr.empty:
                 data['ATRr_14'] = atr
         except Exception:
@@ -67,17 +117,20 @@ def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
         
         try:
             # Bollinger Bands (20, 2)
-            bbands = ta.bbands(data['close'], length=20, std=2)
+            bbands = calculate_bollinger_bands(data, length=20, std=2)
             if bbands is not None and not bbands.empty:
-                data['BBL_20_2.0'] = bbands['BBL_20_2.0']
-                data['BBM_20_2.0'] = bbands['BBM_20_2.0']
-                data['BBU_20_2.0'] = bbands['BBU_20_2.0']
+                if 'BBL_20_2.0' in bbands.columns:
+                    data['BBL_20_2.0'] = bbands['BBL_20_2.0']
+                if 'BBM_20_2.0' in bbands.columns:
+                    data['BBM_20_2.0'] = bbands['BBM_20_2.0']
+                if 'BBU_20_2.0' in bbands.columns:
+                    data['BBU_20_2.0'] = bbands['BBU_20_2.0']
         except Exception:
             pass
         
         try:
             # OBV (On Balance Volume)
-            obv = ta.obv(data['close'], data['volume'])
+            obv = calculate_obv(data)
             if obv is not None and not obv.empty:
                 data['OBV'] = obv
         except Exception:
@@ -85,7 +138,7 @@ def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
         
         try:
             # RSI (14)
-            rsi = ta.rsi(data['close'], length=14)
+            rsi = calculate_rsi(data, length=14)
             if rsi is not None and not rsi.empty:
                 data['RSI_14'] = rsi
         except Exception:
@@ -131,84 +184,15 @@ def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
         raise
 
 
-def calculate_moving_averages(data: pd.DataFrame, mm9_period: int = 9, mm21_period: int = 21) -> pd.DataFrame:
-    """
-    Calcula médias móveis simples (MM9 e MM21) para um DataFrame de preços.
-    
-    Args:
-        data: DataFrame com coluna 'close'
-        mm9_period: Período da média móvel curta (padrão: 9)
-        mm21_period: Período da média móvel longa (padrão: 21)
-    
-    Returns:
-        DataFrame com colunas adicionais 'MM9' e 'MM21'
-    """
-    if data.empty or 'close' not in data.columns:
-        return data
-    
-    data = data.copy()
-    data['MM9'] = data['close'].rolling(window=mm9_period).mean()
-    data['MM21'] = data['close'].rolling(window=mm21_period).mean()
-    
-    return data
-
-
-def detect_moving_average_cross(data: pd.DataFrame, mm9_col: str = 'MM9', mm21_col: str = 'MM21') -> Optional[Literal['BULLISH', 'BEARISH', 'NEUTRAL']]:
-    """
-    Detecta o cruzamento de médias móveis (MM9 e MM21).
-    
-    Retorna:
-        - 'BULLISH': MM9 cruzou acima de MM21 (sinal de compra)
-        - 'BEARISH': MM9 cruzou abaixo de MM21 (sinal de venda)
-        - 'NEUTRAL': Sem cruzamento ou dados insuficientes
-    
-    Args:
-        data: DataFrame com colunas MM9 e MM21
-        mm9_col: Nome da coluna da média móvel curta
-        mm21_col: Nome da coluna da média móvel longa
-    
-    Returns:
-        String indicando o tipo de cruzamento ou None
-    """
-    if data.empty or mm9_col not in data.columns or mm21_col not in data.columns:
-        return 'NEUTRAL'
-    
-    # Pegar os últimos 2 valores válidos (não NaN) para detectar cruzamento
-    valid_data = data[[mm9_col, mm21_col]].dropna()
-    
-    if len(valid_data) < 2:
-        return 'NEUTRAL'
-    
-    # Últimos 2 valores
-    last_two = valid_data.tail(2)
-    
-    prev_mm9 = last_two.iloc[0][mm9_col]
-    prev_mm21 = last_two.iloc[0][mm21_col]
-    curr_mm9 = last_two.iloc[1][mm9_col]
-    curr_mm21 = last_two.iloc[1][mm21_col]
-    
-    # Detectar cruzamento
-    # BULLISH: MM9 estava abaixo e agora está acima de MM21
-    if prev_mm9 < prev_mm21 and curr_mm9 > curr_mm21:
-        return 'BULLISH'
-    
-    # BEARISH: MM9 estava acima e agora está abaixo de MM21
-    if prev_mm9 > prev_mm21 and curr_mm9 < curr_mm21:
-        return 'BEARISH'
-    
-    # Verificar posição atual (sem cruzamento recente)
-    if curr_mm9 > curr_mm21:
-        return 'BULLISH'  # MM9 acima de MM21 (tendência de alta)
-    elif curr_mm9 < curr_mm21:
-        return 'BEARISH'  # MM9 abaixo de MM21 (tendência de baixa)
-    else:
-        return 'NEUTRAL'  # MM9 igual a MM21
+# Re-exportar funções de moving_averages para compatibilidade
+from app.core.market.indicators.moving_averages import calculate_moving_averages, detect_moving_average_cross
 
 
 def get_scanner_indicators(ticker: str, period: str = "1y") -> dict:
     """
     Calcula indicadores técnicos necessários para o scanner:
     RSI_14, MACD signal, e cruzamento de médias móveis (MM9 x MM21).
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
     
     Args:
         ticker: Ticker da ação (ex: 'PETR4')
@@ -223,8 +207,7 @@ def get_scanner_indicators(ticker: str, period: str = "1y") -> dict:
     formatted_ticker = format_ticker(ticker)
     
     try:
-        stock = yf.Ticker(formatted_ticker)
-        data: pd.DataFrame = stock.history(period=period)
+        data = _get_historical_data_with_cache(ticker, period)
         
         if data.empty:
             return {
@@ -241,22 +224,13 @@ def get_scanner_indicators(ticker: str, period: str = "1y") -> dict:
         }, inplace=True)
         
         # Calcular RSI
-        rsi_14 = None
-        try:
-            rsi = ta.rsi(data['close'], length=14)
-            if rsi is not None and not rsi.empty:
-                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.rsi import get_rsi_value
+        rsi_14 = get_rsi_value(data, length=14)
         
         # Calcular MACD
-        macd_signal = None
-        try:
-            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
-            if macd is not None and not macd.empty and 'MACDs_12_26_9' in macd.columns:
-                macd_signal = float(macd['MACDs_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDs_12_26_9'].iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.macd import get_macd_values
+        macd_values = get_macd_values(data, fast=12, slow=26, signal=9)
+        macd_signal = macd_values.get('macd_signal')
         
         # Calcular médias móveis e detectar cruzamento
         data_with_ma = calculate_moving_averages(data)
@@ -281,6 +255,7 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
     """
     Calcula TODOS os indicadores técnicos necessários para ambos ScannerData e DailyScanResult
     em uma única chamada ao yfinance (otimização para evitar chamadas duplicadas).
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
     
     Args:
         ticker: Ticker da ação (ex: 'PETR4')
@@ -299,8 +274,7 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
     formatted_ticker = format_ticker(ticker)
     
     try:
-        stock = yf.Ticker(formatted_ticker)
-        data: pd.DataFrame = stock.history(period=period)
+        data = _get_historical_data_with_cache(ticker, period)
         
         if data.empty:
             return {
@@ -325,26 +299,14 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
         last_price = float(data['close'].iloc[-1]) if not data['close'].empty else None
         
         # Calcular RSI (usado por ambos)
-        rsi_14 = None
-        try:
-            rsi = ta.rsi(data['close'], length=14)
-            if rsi is not None and not rsi.empty:
-                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.rsi import get_rsi_value
+        rsi_14 = get_rsi_value(data, length=14)
         
         # Calcular MACD (obtém signal e histogram de uma vez)
-        macd_signal = None
-        macd_h = None
-        try:
-            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
-            if macd is not None and not macd.empty:
-                if 'MACDs_12_26_9' in macd.columns:
-                    macd_signal = float(macd['MACDs_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDs_12_26_9'].iloc[-1]) else None
-                if 'MACDh_12_26_9' in macd.columns:
-                    macd_h = float(macd['MACDh_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDh_12_26_9'].iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.macd import get_macd_values
+        macd_values = get_macd_values(data, fast=12, slow=26, signal=9)
+        macd_signal = macd_values.get('macd_signal')
+        macd_h = macd_values.get('macd_histogram')
         
         # Calcular médias móveis e detectar cruzamento
         data_with_ma = calculate_moving_averages(data)
@@ -417,6 +379,7 @@ def get_daily_scan_indicators(ticker: str, period: str = "1y") -> dict:
     """
     Calcula indicadores técnicos necessários para DailyScanResult:
     RSI_14, MACD histogram, Bollinger Bands, e último preço.
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
     
     Args:
         ticker: Ticker da ação (ex: 'PETR4')
@@ -433,8 +396,7 @@ def get_daily_scan_indicators(ticker: str, period: str = "1y") -> dict:
     formatted_ticker = format_ticker(ticker)
     
     try:
-        stock = yf.Ticker(formatted_ticker)
-        data: pd.DataFrame = stock.history(period=period)
+        data = _get_historical_data_with_cache(ticker, period)
         
         if data.empty:
             return {
@@ -456,52 +418,19 @@ def get_daily_scan_indicators(ticker: str, period: str = "1y") -> dict:
         last_price = float(data['close'].iloc[-1]) if not data['close'].empty else None
         
         # Calcular RSI
-        rsi_14 = None
-        try:
-            rsi = ta.rsi(data['close'], length=14)
-            if rsi is not None and not rsi.empty:
-                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.rsi import get_rsi_value
+        rsi_14 = get_rsi_value(data, length=14)
         
         # Calcular MACD histogram
-        macd_h = None
-        try:
-            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
-            if macd is not None and not macd.empty and 'MACDh_12_26_9' in macd.columns:
-                macd_h = float(macd['MACDh_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDh_12_26_9'].iloc[-1]) else None
-        except Exception:
-            pass
+        from app.core.market.indicators.macd import get_macd_values
+        macd_values = get_macd_values(data, fast=12, slow=26, signal=9)
+        macd_h = macd_values.get('macd_histogram')
         
         # Calcular Bollinger Bands (precisa de pelo menos 20 períodos)
-        bb_upper = None
-        bb_lower = None
-        try:
-            if len(data) >= 20:  # Bollinger Bands precisa de pelo menos 20 períodos
-                bbands = ta.bbands(data['close'], length=20, std=2)
-                if bbands is not None and not bbands.empty:
-                    # Verificar se bbands é um DataFrame
-                    if isinstance(bbands, pd.DataFrame):
-                        # Verificar todas as colunas possíveis
-                        for col in bbands.columns:
-                            if 'BBU' in col or 'BBU_20_2.0' in col:
-                                bb_upper_val = bbands[col].iloc[-1]
-                                if not pd.isna(bb_upper_val):
-                                    bb_upper = float(bb_upper_val)
-                                    break
-                        for col in bbands.columns:
-                            if 'BBL' in col or 'BBL_20_2.0' in col:
-                                bb_lower_val = bbands[col].iloc[-1]
-                                if not pd.isna(bb_lower_val):
-                                    bb_lower = float(bb_lower_val)
-                                    break
-                    else:
-                        # Se não for DataFrame, pode ser que retorne um dict ou outra estrutura
-                        print(f"Bollinger Bands retornou tipo inesperado: {type(bbands)} para {formatted_ticker}")
-        except Exception as e:
-            print(f"Erro ao calcular Bollinger Bands para {formatted_ticker}: {e}")
-            import traceback
-            traceback.print_exc()
+        from app.core.market.indicators.bollinger_bands import get_bollinger_bands_values
+        bb_values = get_bollinger_bands_values(data, length=20, std=2)
+        bb_upper = bb_values.get('bb_upper')
+        bb_lower = bb_values.get('bb_lower')
         
         return {
             'last_price': last_price,

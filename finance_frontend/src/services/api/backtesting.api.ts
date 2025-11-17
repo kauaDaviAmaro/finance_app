@@ -100,5 +100,20 @@ export const backtestingApi = {
     const response = await apiClient.get<PaperTrade[]>(`/backtesting/paper-trading/history${params}`)
     return response.data
   },
+
+  async getPaperTradingDetail(paperTradeId: number): Promise<PaperTrade> {
+    const response = await apiClient.get<PaperTrade>(`/backtesting/paper-trading/${paperTradeId}`)
+    return response.data
+  },
+
+  async getPaperTradingAllPositions(paperTradeId: number): Promise<PaperTradePosition[]> {
+    const response = await apiClient.get<PaperTradePosition[]>(`/backtesting/paper-trading/${paperTradeId}/all-positions`)
+    return response.data
+  },
+
+  async getActivePaperTrading(): Promise<PaperTrade[]> {
+    const response = await apiClient.get<PaperTrade[]>(`/backtesting/paper-trading/active`)
+    return response.data
+  },
 }
 

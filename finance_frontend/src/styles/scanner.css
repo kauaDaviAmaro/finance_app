@@ -220,7 +220,10 @@
 }
 
 .card-icon {
-  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
 }
 
 .card-text {

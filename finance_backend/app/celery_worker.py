@@ -5,7 +5,10 @@ from app.db.database import SessionLocal, engine
 from app.core.market_service import get_all_tracked_tickers, update_ticker_prices, check_and_trigger_alerts
 from app.core.market.ticker_utils import get_all_b3_tickers, remove_tickers_from_json
 from app.core.market.technical_analysis import get_all_scanner_indicators
-from app.db.models import Base, ScannerData, DailyScanResult
+from app.db.models import Base, ScannerData, DailyScanResult, PaperTrade, PaperTradePosition, PaperTradeStatus
+from app.core.backtesting.paper_trading import PaperTradingEngine
+from datetime import datetime
+from decimal import Decimal
 import logging
 import time
 
@@ -49,6 +52,13 @@ celery_app.conf.beat_schedule = {
     'schedule-full-market-scan': {
         'task': 'app.celery_worker.run_full_market_scan',
         'schedule': crontab(hour=3, minute=0),  # 3:00 AM
+        'args': (),
+        'options': {'queue': 'periodic_tasks'}
+    },
+    # Tarefa de processamento de Paper Trading (cada 5 minutos)
+    'schedule-paper-trading': {
+        'task': 'app.celery_worker.process_paper_trading_task',
+        'schedule': 300.0,  # 5 minutos
         'args': (),
         'options': {'queue': 'periodic_tasks'}
     },
@@ -312,4 +322,162 @@ def run_full_market_scan(self):
     except Exception as e:
         # Retry apenas em caso de erro crítico (não para erros individuais de tickers)
         raise self.retry(exc=e, countdown=3600, max_retries=2)
+
+
+@celery_app.task(
+    name='app.celery_worker.process_paper_trading_task',
+    bind=True,
+    rate_limit='1/m',  # Máximo 1 execução por minuto (já é controlada pelo beat schedule)
+    max_retries=3,
+    default_retry_delay=60
+)
+def process_paper_trading_task(self):
+    """
+    Tarefa agendada para processar paper trading ativo.
+    Verifica sinais de entrada/saída e executa trades automaticamente.
+    Roda a cada 5 minutos.
+    """
+    logger.info("Iniciando processamento de paper trading...")
+
+    db = SessionLocal()
+    
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.error(f"Erro ao garantir a criação das tabelas no worker: {e}")
+        db.close()
+        return
+
+    try:
+        # Buscar todas as simulações ativas (não pausadas)
+        active_paper_trades = db.query(PaperTrade).filter(
+            PaperTrade.status == PaperTradeStatus.ACTIVE
+        ).all()
+
+        if not active_paper_trades:
+            logger.info("Nenhuma simulação de paper trading ativa encontrada.")
+            return "Nenhuma simulação ativa para processar."
+
+        trades_executed = 0
+        errors_count = 0
+
+        for paper_trade in active_paper_trades:
+            try:
+                logger.info(f"Processando paper trading ID {paper_trade.id} - Ticker: {paper_trade.ticker}")
+                
+                # Carregar posições abertas do banco
+                open_positions = db.query(PaperTradePosition).filter(
+                    PaperTradePosition.paper_trade_id == paper_trade.id,
+                    PaperTradePosition.exit_date.is_(None)
+                ).all()
+
+                # Criar engine
+                engine = PaperTradingEngine(paper_trade.strategy, paper_trade.ticker, db)
+                engine.capital = float(paper_trade.current_capital)
+                engine.initial_capital = float(paper_trade.initial_capital)
+
+                # Carregar posições abertas no engine
+                for pos in open_positions:
+                    engine.positions.append({
+                        'entry_date': pos.entry_date,
+                        'entry_price': float(pos.entry_price),
+                        'quantity': pos.quantity,
+                        'cost': float(pos.entry_price) * pos.quantity,
+                        'db_position_id': pos.id  # Guardar ID para atualizar depois
+                    })
+
+                # Verificar sinais
+                signals = engine.check_signals()
+                
+                if signals.get('error'):
+                    logger.warning(f"Erro ao verificar sinais para {paper_trade.ticker}: {signals.get('error')}")
+                    continue
+
+                # Processar sinal de entrada
+                if signals.get('entry_signal') and not engine.positions:
+                    logger.info(f"Sinal de ENTRADA detectado para {paper_trade.ticker}")
+                    entry_result = engine.execute_entry()
+                    
+                    if entry_result:
+                        # Salvar posição no banco
+                        new_position = PaperTradePosition(
+                            paper_trade_id=paper_trade.id,
+                            ticker=paper_trade.ticker,
+                            quantity=entry_result['quantity'],
+                            entry_price=Decimal(str(entry_result['price'])),
+                            entry_date=entry_result['timestamp']
+                        )
+                        db.add(new_position)
+                        db.flush()  # Para obter o ID
+                        
+                        # Atualizar capital
+                        paper_trade.current_capital = Decimal(str(engine.capital))
+                        paper_trade.last_update = datetime.now()
+                        
+                        trades_executed += 1
+                        logger.info(
+                            f"ENTRADA executada: {entry_result['quantity']} ações de {paper_trade.ticker} "
+                            f"a R$ {entry_result['price']:.2f}"
+                        )
+
+                # Processar sinal de saída
+                elif signals.get('exit_signal') and engine.positions:
+                    logger.info(f"Sinal de SAÍDA detectado para {paper_trade.ticker}")
+                    current_price = signals.get('current_price', 0)
+                    
+                    if current_price > 0:
+                        exit_results = engine.execute_exit(price=current_price)
+                        
+                        if exit_results:
+                            # Fechar todas as posições abertas do banco
+                            for pos in open_positions:
+                                # Calcular P&L
+                                exit_price = Decimal(str(current_price))
+                                pnl = (exit_price - pos.entry_price) * pos.quantity
+                                
+                                pos.exit_price = exit_price
+                                pos.exit_date = datetime.now()
+                                pos.pnl = pnl
+                                
+                                trades_executed += 1
+                                logger.info(
+                                    f"SAÍDA executada: {pos.quantity} ações de {paper_trade.ticker} "
+                                    f"a R$ {current_price:.2f} - P&L: R$ {pnl:.2f}"
+                                )
+
+                            # Atualizar capital
+                            paper_trade.current_capital = Decimal(str(engine.capital))
+                            paper_trade.last_update = datetime.now()
+                    else:
+                        logger.warning(f"Preço inválido para saída: {current_price}")
+
+                # Commit para este paper trade
+                db.commit()
+
+            except Exception as e:
+                errors_count += 1
+                logger.error(
+                    f"Erro ao processar paper trading ID {paper_trade.id} ({paper_trade.ticker}): {e}",
+                    exc_info=True
+                )
+                db.rollback()
+                # Continuar processando outras simulações mesmo se uma falhar
+                continue
+
+        result_msg = (
+            f"Processamento de paper trading concluído. "
+            f"Simulações processadas: {len(active_paper_trades)}, "
+            f"Trades executados: {trades_executed}, "
+            f"Erros: {errors_count}"
+        )
+        logger.info(result_msg)
+        return result_msg
+
+    except Exception as e:
+        logger.error(f"Erro crítico no processamento de paper trading: {e}", exc_info=True)
+        db.rollback()
+        raise self.retry(exc=e, countdown=60, max_retries=3)
+        
+    finally:
+        db.close()
 

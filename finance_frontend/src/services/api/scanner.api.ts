@@ -6,7 +6,8 @@ export interface ScannerParams {
   rsi_gt?: number
   macd_gt?: number
   macd_lt?: number
-  bb_touch?: 'upper' | 'lower' | 'any'
+  quality_gt?: number
+  quality_lt?: number
   sort?: ScannerSort
   limit?: number
 }

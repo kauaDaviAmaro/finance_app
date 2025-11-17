@@ -52,7 +52,7 @@ const showDeleteModal = ref(false)
 const portfolioToDelete = ref<Portfolio | null>(null)
 const riskAnalysis = ref<PortfolioRiskAnalysis | null>(null)
 const loadingRisk = ref(false)
-const showRiskSection = ref(true)
+const showRiskSection = ref(false)
 const expandedPositions = ref<Set<number>>(new Set())
 
 const newPosition = ref<PortfolioItemCreate>({

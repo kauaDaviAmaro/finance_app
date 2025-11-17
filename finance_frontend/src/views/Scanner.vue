@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { getScannerResults } from '../services/api/scanner.api'
 import { api } from '../services/api/index'
 import type { ScannerRow, ScannerSort } from '../services/api/types'
-import { Crown, Search, Plus, Loader2, Clock, Settings, Zap, Eye, X, BarChart } from 'lucide-vue-next'
+import { Crown, Search, Plus, Loader2, Clock, Settings, Zap, Eye, X, BarChart, TrendingDown, TrendingUp, Rocket } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
@@ -24,48 +24,64 @@ const watchlistTickers = ref<Set<string>>(new Set())
 const advancedMode = ref(false)
 
 // Modo Simples
-const simpleFilter = ref<'oversold' | 'overbought' | 'macd_positive' | 'bb_lower' | null>(null)
+const simpleFilter = ref<'oversold' | 'overbought' | 'macd_positive' | 'high_quality' | null>(null)
 
 // Modo Avançado
 const rsiOp = ref<'lt' | 'gt'>('lt')
 const rsiVal = ref<number | undefined>(30)
 const macdOp = ref<'lt' | 'gt'>('gt')
 const macdVal = ref<number | undefined>(0)
-const bbTouch = ref<'upper' | 'lower' | 'any' | undefined>(undefined)
+const qualityOp = ref<'lt' | 'gt'>('gt')
+const qualityVal = ref<number | undefined>(50)
 const sort = ref<ScannerSort | undefined>('rsi_asc')
 
 function buildParams() {
   const params: Record<string, unknown> = {}
+  let hasFilters = false
   
   if (advancedMode.value) {
     // Modo Avançado
     if (rsiVal.value !== undefined && rsiVal.value !== null) {
       params[rsiOp.value === 'lt' ? 'rsi_lt' : 'rsi_gt'] = rsiVal.value
+      hasFilters = true
     }
     if (macdVal.value !== undefined && macdVal.value !== null) {
       params[macdOp.value === 'gt' ? 'macd_gt' : 'macd_lt'] = macdVal.value
+      hasFilters = true
     }
-    if (bbTouch.value) params['bb_touch'] = bbTouch.value
+    if (qualityVal.value !== undefined && qualityVal.value !== null) {
+      params[qualityOp.value === 'gt' ? 'quality_gt' : 'quality_lt'] = qualityVal.value
+      hasFilters = true
+    }
     if (sort.value) params['sort'] = sort.value
+    // Se não houver filtros, ordenar por quality score
+    if (!hasFilters && !sort.value) {
+      params['sort'] = 'quality_desc'
+    }
   } else {
     // Modo Simples
-    switch (simpleFilter.value) {
-      case 'oversold':
-        params['rsi_lt'] = 30
-        params['sort'] = 'rsi_asc'
-        break
-      case 'overbought':
-        params['rsi_gt'] = 70
-        params['sort'] = 'rsi_desc'
-        break
-      case 'macd_positive':
-        params['macd_gt'] = 0
-        params['sort'] = 'macd_desc'
-        break
-      case 'bb_lower':
-        params['bb_touch'] = 'lower'
-        params['sort'] = 'rsi_asc'
-        break
+    if (simpleFilter.value) {
+      switch (simpleFilter.value) {
+        case 'oversold':
+          params['rsi_lt'] = 30
+          params['sort'] = 'rsi_asc'
+          break
+        case 'overbought':
+          params['rsi_gt'] = 70
+          params['sort'] = 'rsi_desc'
+          break
+        case 'macd_positive':
+          params['macd_gt'] = 0
+          params['sort'] = 'macd_desc'
+          break
+        case 'high_quality':
+          params['quality_gt'] = 70
+          params['sort'] = 'rsi_asc'
+          break
+      }
+    } else {
+      // Se nenhum filtro selecionado, ordenar por quality score
+      params['sort'] = 'quality_desc'
     }
   }
   
@@ -194,7 +210,7 @@ onMounted(async () => {
           <div class="locked-features">
             <div class="locked-feature">
               <span class="check">✓</span>
-              <span>Filtros por RSI, MACD e Bollinger Bands</span>
+              <span>Filtros por RSI e MACD</span>
             </div>
             <div class="locked-feature">
               <span class="check">✓</span>
@@ -251,7 +267,9 @@ onMounted(async () => {
               class="simple-card"
               :class="{ selected: simpleFilter === 'oversold' }"
             >
-              <div class="card-icon">📉</div>
+              <div class="card-icon">
+                <TrendingDown :size="32" />
+              </div>
               <div class="card-text">
                 <strong>Ações Sobrevendidas</strong>
                 <span>RSI abaixo de 30 (oportunidade de compra)</span>
@@ -263,7 +281,9 @@ onMounted(async () => {
               class="simple-card"
               :class="{ selected: simpleFilter === 'overbought' }"
             >
-              <div class="card-icon">📈</div>
+              <div class="card-icon">
+                <TrendingUp :size="32" />
+              </div>
               <div class="card-text">
                 <strong>Ações Sobrecompradas</strong>
                 <span>RSI acima de 70 (possível venda)</span>
@@ -275,7 +295,9 @@ onMounted(async () => {
               class="simple-card"
               :class="{ selected: simpleFilter === 'macd_positive' }"
             >
-              <div class="card-icon">🚀</div>
+              <div class="card-icon">
+                <Rocket :size="32" />
+              </div>
               <div class="card-text">
                 <strong>Momentum Positivo</strong>
                 <span>MACD positivo (tendência de alta)</span>
@@ -283,14 +305,16 @@ onMounted(async () => {
             </button>
             
             <button 
-              @click="simpleFilter = simpleFilter === 'bb_lower' ? null : 'bb_lower'"
+              @click="simpleFilter = simpleFilter === 'high_quality' ? null : 'high_quality'"
               class="simple-card"
-              :class="{ selected: simpleFilter === 'bb_lower' }"
+              :class="{ selected: simpleFilter === 'high_quality' }"
             >
-              <div class="card-icon">💎</div>
+              <div class="card-icon">
+                <Crown :size="32" />
+              </div>
               <div class="card-text">
-                <strong>Preço na Banda Inferior</strong>
-                <span>Toque na Bollinger Band inferior (suporte)</span>
+                <strong>Alta Qualidade</strong>
+                <span>Quality Score acima de 70 (empresas sólidas)</span>
               </div>
             </button>
           </div>
@@ -298,7 +322,7 @@ onMounted(async () => {
           <button 
             @click="fetchResults" 
             class="search-btn" 
-            :disabled="loading || !simpleFilter"
+            :disabled="loading"
           >
             <Search :size="20" />
             <span>{{ loading ? 'Buscando...' : 'BUSCAR AGORA' }}</span>
@@ -344,13 +368,22 @@ onMounted(async () => {
           </div>
 
           <div class="filter-item">
-            <label class="filter-label">Bollinger Bands</label>
-            <select v-model="bbTouch" class="filter-select">
-              <option :value="undefined">—</option>
-              <option value="upper">Toque superior</option>
-              <option value="lower">Toque inferior</option>
-              <option value="any">Qualquer toque</option>
-            </select>
+            <label class="filter-label">Quality Score</label>
+            <div class="filter-controls">
+              <select v-model="qualityOp" class="filter-select-op">
+                <option value="gt">Maior que (&gt;)</option>
+                <option value="lt">Menor que (&lt;)</option>
+              </select>
+              <input 
+                v-model.number="qualityVal" 
+                type="number" 
+                class="filter-input" 
+                placeholder="50"
+                min="0"
+                max="100"
+              />
+              <span class="filter-hint">Score (0-100)</span>
+            </div>
           </div>
 
           <div class="filter-item">
@@ -360,6 +393,7 @@ onMounted(async () => {
               <option value="rsi_asc">RSI ↑ (menor primeiro)</option>
               <option value="rsi_desc">RSI ↓ (maior primeiro)</option>
               <option value="macd_desc">MACD Hist. ↓ (maior primeiro)</option>
+              <option value="quality_desc">Quality Score ↓ (maior primeiro)</option>
             </select>
           </div>
 

@@ -89,5 +89,14 @@ export const api = {
   pausePaperTrading: backtestingApi.pausePaperTrading,
   getPaperTradingPositions: backtestingApi.getPaperTradingPositions,
   getPaperTradingHistory: backtestingApi.getPaperTradingHistory,
+  getPaperTradingDetail: backtestingApi.getPaperTradingDetail,
+  getPaperTradingAllPositions: backtestingApi.getPaperTradingAllPositions,
+  getActivePaperTrading: backtestingApi.getActivePaperTrading,
+  
+  // Advanced Analysis methods (PRO only)
+  getAdvancedAnalysis: stocksApi.getAdvancedAnalysis,
+  saveElliottAnnotations: stocksApi.saveElliottAnnotations,
+  getElliottAnnotations: stocksApi.getElliottAnnotations,
+  deleteElliottAnnotations: stocksApi.deleteElliottAnnotations,
 }
 

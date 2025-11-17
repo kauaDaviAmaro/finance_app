@@ -402,3 +402,24 @@ class PaperTradePosition(Base):
     
     def __repr__(self):
         return f"<PaperTradePosition(id={self.id}, paper_trade_id={self.paper_trade_id}, ticker='{self.ticker}', quantity={self.quantity})>"
+
+
+class ElliottAnnotation(Base):
+    __tablename__ = "elliott_annotations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False, index=True)
+    period = Column(String(20), nullable=False)  # 1y, 3mo, etc.
+    annotations = Column(JSON, nullable=False)  # Lista de pontos de onda [{wave: "1", date: "2024-01-01", price: 10.5}, ...]
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    user = relationship("User", backref="elliott_annotations")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'ticker', 'period', name='uq_user_ticker_period'),
+    )
+    
+    def __repr__(self):
+        return f"<ElliottAnnotation(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', period='{self.period}')>"

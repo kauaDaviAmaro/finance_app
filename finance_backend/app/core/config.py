@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # Celery
     celery_broker_url: str
     celery_result_backend: str
+    celery_worker_concurrency: int = 1
     
     # Email
     SMTP_HOST: Optional[str] = None
@@ -45,9 +46,17 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: Optional[str] = None
     VAPID_CLAIM_EMAIL: Optional[str] = None
     
+    # Port Configuration (Optional)
+    api_port: int = 8000
+    frontend_port: int = 5173
+    
+    # Frontend Configuration (Optional)
+    vite_api_base_url: Optional[str] = None
+    
     model_config = ConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        extra="ignore"  # Ignorar campos extras do .env que não estão no modelo
     )
         
     def get_database_url(self) -> str:

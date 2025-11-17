@@ -280,7 +280,7 @@ export interface ScannerRow {
   quality_score?: number | null
 }
 
-export type ScannerSort = 'rsi_asc' | 'rsi_desc' | 'macd_desc'
+export type ScannerSort = 'rsi_asc' | 'rsi_desc' | 'macd_desc' | 'quality_desc'
 
 // Backtesting Types
 export type StrategyType = 'GRAPHICAL' | 'JSON'
@@ -553,5 +553,83 @@ export interface PortfolioRiskAnalysis {
   portfolio_id: number
   metrics: RiskMetrics
   position_analyses: PositionRiskAnalysis[]
+}
+
+// Advanced Analysis Types
+export interface SupportResistanceLevel {
+  price: number
+  strength: number
+  test_count: number
+  distance_from_current: number
+}
+
+export interface ChartPattern {
+  pattern_type: string
+  pattern_name: string
+  start_date: string
+  end_date: string
+  confidence: number
+  head_price?: number | null
+  neckline?: number | null
+  top_price?: number | null
+  bottom_price?: number | null
+  valley?: number | null
+  peak?: number | null
+  trend?: string | null
+}
+
+export interface CandlestickPattern {
+  pattern_name: string
+  pattern_type: string
+  date: string
+  signal: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
+  price: number
+}
+
+export interface ElliottWavePoint {
+  wave: string
+  date: string
+  price: number
+  index: number
+}
+
+export interface ElliottWaves {
+  pattern_type: string | null
+  waves: ElliottWavePoint[]
+  confidence: number
+  wave_labels?: string[] | null
+}
+
+export interface AdvancedAnalysis {
+  ticker: string
+  period: string
+  patterns: ChartPattern[]
+  support_levels: SupportResistanceLevel[]
+  resistance_levels: SupportResistanceLevel[]
+  candlestick_patterns: CandlestickPattern[]
+  fibonacci_levels: Record<string, number>
+  elliott_waves: ElliottWaves
+}
+
+// Elliott Annotation Types
+export interface WavePoint {
+  wave: string
+  date: string
+  price: number
+}
+
+export interface ElliottAnnotation {
+  id: number
+  ticker: string
+  period: string
+  annotations: WavePoint[]
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface ElliottAnnotationCreate {
+  ticker: string
+  period: string
+  annotations: WavePoint[]
 }
 

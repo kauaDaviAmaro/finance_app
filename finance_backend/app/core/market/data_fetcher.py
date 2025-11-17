@@ -6,43 +6,68 @@ import pandas as pd
 from typing import Dict, Any, Optional, Tuple
 
 from app.core.market.ticker_utils import format_ticker
+from app.core.redis_cache import get_cached_dataframe, set_cached_dataframe, get_cached_dict, set_cached_dict
 
 
-def get_historical_data(ticker: str, period: str = "1y") -> list[dict]:
+def _fetch_historical_data_from_yfinance(ticker: str, period: str = "1y") -> pd.DataFrame:
     """
-    Busca dados históricos de um ticker, formatando-o se for da B3.
+    Busca dados históricos diretamente do yfinance (sem cache).
     """
     formatted_ticker = format_ticker(ticker)
     
     try:
         stock = yf.Ticker(formatted_ticker)
-        
         data: pd.DataFrame = stock.history(period=period)
         
         if data.empty:
-            return []
-
-        data.reset_index(inplace=True)
-        data.rename(columns={
-            'Date': 'date', 
-            'Open': 'open', 
-            'High': 'high', 
-            'Low': 'low', 
-            'Close': 'close', 
-            'Volume': 'volume', 
-            'Dividends': 'dividends', 
-            'Stock Splits': 'stock_splits'
-        }, inplace=True)
+            return pd.DataFrame()
         
-        data['date'] = data['date'].dt.strftime('%Y-%m-%d')
-        
-        data = data[['date', 'open', 'high', 'low', 'close', 'volume']]
-
-        return data.to_dict(orient='records')
-        
+        return data
     except Exception as e:
         print(f"Erro ao buscar dados do ticker {formatted_ticker}: {e}")
         raise
+
+
+def get_historical_data(ticker: str, period: str = "1y") -> list[dict]:
+    """
+    Busca dados históricos de um ticker, formatando-o se for da B3.
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
+    """
+    formatted_ticker = format_ticker(ticker)
+    cache_key = f"yfinance:historical:{formatted_ticker}:{period}"
+    
+    # 1. TENTA BUSCAR NO CACHE
+    data = get_cached_dataframe(cache_key)
+    
+    # 2. NÃO ACHOU NO CACHE? BUSCA NA API (E SALVA)
+    if data is None or data.empty:
+        print(f"📡 CACHE MISS: Ticker {formatted_ticker} (period={period}). Buscando no yfinance...")
+        data = _fetch_historical_data_from_yfinance(ticker, period)
+        
+        if data is not None and not data.empty:
+            set_cached_dataframe(cache_key, data)
+    
+    if data.empty:
+        return []
+
+    data = data.copy()
+    data.reset_index(inplace=True)
+    data.rename(columns={
+        'Date': 'date', 
+        'Open': 'open', 
+        'High': 'high', 
+        'Low': 'low', 
+        'Close': 'close', 
+        'Volume': 'volume', 
+        'Dividends': 'dividends', 
+        'Stock Splits': 'stock_splits'
+    }, inplace=True)
+    
+    data['date'] = data['date'].dt.strftime('%Y-%m-%d')
+    
+    data = data[['date', 'open', 'high', 'low', 'close', 'volume']]
+
+    return data.to_dict(orient='records')
 
 
 def calculate_quality_score(
@@ -123,18 +148,45 @@ def calculate_quality_score(
     return round(score, 2), normalized
 
 
-def get_company_fundamentals(ticker: str) -> Dict[str, Any]:
+def _fetch_fundamentals_from_yfinance(ticker: str) -> Dict[str, Any]:
     """
-    Busca dados fundamentalistas de uma empresa usando yfinance.
-    Retorna: P/E, P/VP, Dividend Yield, Beta, Setor, Indústria, Market Cap,
-    ROE, ROA, Margem Líquida, Dívida/Patrimônio, EV/EBITDA, P/EBIT e Quality Score.
+    Busca dados fundamentalistas diretamente do yfinance (sem cache).
     """
     formatted_ticker = format_ticker(ticker)
     
     try:
         stock = yf.Ticker(formatted_ticker)
         info = stock.info
+        return info
+    except Exception as e:
+        print(f"Erro ao buscar fundamentos do ticker {formatted_ticker}: {e}")
+        raise
+
+
+def get_company_fundamentals(ticker: str) -> Dict[str, Any]:
+    """
+    Busca dados fundamentalistas de uma empresa usando yfinance.
+    Retorna: P/E, P/VP, Dividend Yield, Beta, Setor, Indústria, Market Cap,
+    ROE, ROA, Margem Líquida, Dívida/Patrimônio, EV/EBITDA, P/EBIT e Quality Score.
+    Usa cache Redis para evitar múltiplas requisições ao yfinance.
+    """
+    formatted_ticker = format_ticker(ticker)
+    cache_key = f"yfinance:fundamentals:{formatted_ticker}"
+    
+    # 1. TENTA BUSCAR NO CACHE
+    cached_info = get_cached_dict(cache_key)
+    
+    # 2. NÃO ACHOU NO CACHE? BUSCA NA API (E SALVA)
+    if cached_info is None:
+        print(f"📡 CACHE MISS: Fundamentos do ticker {formatted_ticker}. Buscando no yfinance...")
+        info = _fetch_fundamentals_from_yfinance(ticker)
         
+        if info:
+            set_cached_dict(cache_key, info)
+    else:
+        info = cached_info
+    
+    try:
         # Extrair dados básicos, tratando valores None ou indisponíveis
         fundamentals = {
             'pe_ratio': info.get('trailingPE') or info.get('forwardPE'),

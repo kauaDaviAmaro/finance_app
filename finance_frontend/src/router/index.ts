@@ -185,6 +185,18 @@ const router = createRouter({
         noindex: true,
       },
     },
+    {
+      path: '/advanced-analysis',
+      name: 'AdvancedAnalysis',
+      component: () => import('../views/AdvancedAnalysis.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresPro: true,
+        title: 'Análise Técnica Avançada - Finance App',
+        description: 'Análise técnica avançada com padrões gráficos, Fibonacci, ondas de Elliott e mais (PRO).',
+        noindex: true,
+      },
+    },
     // Admin Routes
     {
       path: '/admin',
