@@ -145,6 +145,13 @@ function formatNum(n: number | null | undefined) {
   return Number(n).toFixed(2)
 }
 
+function getQualityScoreColor(score: number | null | undefined): string {
+  if (score === null || score === undefined) return '#64748b'
+  if (score >= 70) return '#16a34a' // Verde
+  if (score >= 50) return '#eab308' // Amarelo
+  return '#dc2626' // Vermelho
+}
+
 function formatCurrency(value: number | null | undefined) {
   if (value === null || value === undefined) return '-'
   return new Intl.NumberFormat('pt-BR', {
@@ -380,6 +387,7 @@ onMounted(async () => {
                   <th>Preço Atual</th>
                   <th>RSI (14)</th>
                   <th>MACD Hist.</th>
+                  <th>Score Qualidade</th>
                   <th>Ação</th>
                 </tr>
               </thead>
@@ -394,6 +402,16 @@ onMounted(async () => {
                   </td>
                   <td :class="{ 'macd-pos': row.macd_h && row.macd_h > 0 }">
                     {{ formatNum(row.macd_h) }}
+                  </td>
+                  <td>
+                    <span 
+                      v-if="row.quality_score !== null && row.quality_score !== undefined"
+                      class="quality-score-badge"
+                      :style="{ color: getQualityScoreColor(row.quality_score) }"
+                    >
+                      {{ row.quality_score.toFixed(1) }}
+                    </span>
+                    <span v-else>-</span>
                   </td>
                   <td>
                     <div class="action-buttons">

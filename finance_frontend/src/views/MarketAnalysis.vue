@@ -2,8 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, ApiError, type TechnicalAnalysis, type Fundamentals } from '../services/api/index'
-import { TrendingUp, Search, BarChart, Activity, DollarSign, Info, Plus, Eye, Loader2, X } from 'lucide-vue-next'
+import { api, ApiError, type TechnicalAnalysis, type Fundamentals, type FinancialStatements } from '../services/api/index'
+import { TrendingUp, Search, BarChart, Activity, DollarSign, Info, Plus, Eye, Loader2, X, FileText } from 'lucide-vue-next'
 import PriceChart from '../components/PriceChart.vue'
 import VolumeChart from '../components/VolumeChart.vue'
 import RSIChart from '../components/RSIChart.vue'
@@ -20,7 +20,9 @@ const loading = ref(false)
 const error = ref('')
 const technicalData = ref<TechnicalAnalysis | null>(null)
 const fundamentals = ref<Fundamentals | null>(null)
-const activeTab = ref<'technical' | 'fundamentals'>('technical')
+const financialStatements = ref<FinancialStatements | null>(null)
+const activeTab = ref<'technical' | 'fundamentals' | 'balance'>('technical')
+const activeStatementTab = ref<'income' | 'balance' | 'cashflow'>('income')
 const isInWatchlist = ref(false)
 const addingToWatchlist = ref(false)
 const removingFromWatchlist = ref(false)
@@ -103,15 +105,18 @@ async function searchTicker() {
   loading.value = true
   technicalData.value = null
   fundamentals.value = null
+  financialStatements.value = null
 
   try {
-    const [techAnalysis, fundData] = await Promise.all([
+    const [techAnalysis, fundData, financialData] = await Promise.all([
       api.getTechnicalAnalysis(ticker.value.toUpperCase(), period.value),
       api.getFundamentals(ticker.value.toUpperCase()).catch(() => null),
+      api.getFinancialStatements(ticker.value.toUpperCase()).catch(() => null),
     ])
 
     technicalData.value = techAnalysis
     fundamentals.value = fundData
+    financialStatements.value = financialData
     await checkWatchlist()
   } catch (err) {
     if (err instanceof ApiError) {
@@ -142,11 +147,35 @@ function formatPercent(value: number | undefined): string {
   return `${value.toFixed(2)}%`
 }
 
+function formatFinancialValue(value: number | null | undefined): string {
+  if (value === undefined || value === null) return 'N/A'
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function getRSIStatus(rsi: number | undefined): { status: string; color: string } {
   if (!rsi) return { status: 'N/A', color: '#64748b' }
   if (rsi > 70) return { status: 'Sobrecomprado', color: '#dc2626' }
   if (rsi < 30) return { status: 'Sobrevendido', color: '#16a34a' }
   return { status: 'Neutro', color: '#64748b' }
+}
+
+function getQualityScoreColor(score: number | undefined): string {
+  if (score === undefined || score === null) return '#64748b'
+  if (score >= 70) return '#16a34a' // Verde
+  if (score >= 50) return '#eab308' // Amarelo
+  return '#dc2626' // Vermelho
+}
+
+function getQualityScoreLabel(score: number | undefined): string {
+  if (score === undefined || score === null) return 'N/A'
+  if (score >= 70) return 'Excelente'
+  if (score >= 50) return 'Bom'
+  return 'Baixo'
 }
 
 onMounted(async () => {
@@ -230,6 +259,13 @@ onMounted(async () => {
           >
             <Activity :size="18" />
             Fundamentos
+          </button>
+          <button
+            @click="activeTab = 'balance'"
+            :class="['tab-button', { active: activeTab === 'balance' }]"
+          >
+            <FileText :size="18" />
+            Balanço
           </button>
         </div>
 
@@ -317,6 +353,19 @@ onMounted(async () => {
                 {{ formatNumber(Math.round(technicalData.data.reduce((sum, d) => sum + d.volume, 0) / technicalData.data.length)) }}
               </div>
             </div>
+
+            <div v-if="fundamentals" class="indicator-card quality-score-indicator" :style="{ borderColor: getQualityScoreColor(fundamentals.quality_score) }">
+              <div class="indicator-header">
+                <Activity :size="20" :style="{ color: getQualityScoreColor(fundamentals.quality_score) }" />
+                <span>Score de Qualidade</span>
+              </div>
+              <div class="indicator-value" :style="{ color: getQualityScoreColor(fundamentals.quality_score) }">
+                {{ fundamentals.quality_score?.toFixed(1) || 'N/A' }}
+              </div>
+              <div class="indicator-status" :style="{ color: getQualityScoreColor(fundamentals.quality_score) }">
+                {{ getQualityScoreLabel(fundamentals.quality_score) }}
+              </div>
+            </div>
           </div>
 
           <!-- Gráficos de Indicadores Técnicos -->
@@ -384,6 +433,21 @@ onMounted(async () => {
           </div>
 
           <div class="fundamentals-grid">
+            <!-- Quality Score Card (Destaque) -->
+            <div class="fundamental-card quality-score-card" :style="{ borderColor: getQualityScoreColor(fundamentals.quality_score) }">
+              <div class="fundamental-label">Score de Qualidade</div>
+              <div class="fundamental-value quality-score-value" :style="{ color: getQualityScoreColor(fundamentals.quality_score) }">
+                {{ fundamentals.quality_score?.toFixed(1) || 'N/A' }}
+              </div>
+              <div class="quality-score-label" :style="{ color: getQualityScoreColor(fundamentals.quality_score) }">
+                {{ getQualityScoreLabel(fundamentals.quality_score) }}
+              </div>
+              <div class="fundamental-info">
+                <Info :size="14" />
+                <span>Baseado em ROE, ROA, Margem Líquida e Dívida/Patrimônio</span>
+              </div>
+            </div>
+
             <div class="fundamental-card">
               <div class="fundamental-label">P/L (Price-to-Earnings)</div>
               <div class="fundamental-value">{{ fundamentals.pe_ratio?.toFixed(2) || 'N/A' }}</div>
@@ -395,8 +459,18 @@ onMounted(async () => {
             </div>
 
             <div class="fundamental-card">
+              <div class="fundamental-label">EV/EBITDA</div>
+              <div class="fundamental-value">{{ fundamentals.ev_ebitda?.toFixed(2) || 'N/A' }}</div>
+            </div>
+
+            <div class="fundamental-card">
+              <div class="fundamental-label">P/EBIT</div>
+              <div class="fundamental-value">{{ fundamentals.pebit_ratio?.toFixed(2) || 'N/A' }}</div>
+            </div>
+
+            <div class="fundamental-card">
               <div class="fundamental-label">Dividend Yield</div>
-              <div class="fundamental-value">{{ fundamentals.dividend_yield ? formatPercent(fundamentals.dividend_yield) : 'N/A' }}</div>
+              <div class="fundamental-value">{{ fundamentals.dividend_yield ? formatPercent(fundamentals.dividend_yield * 100) : 'N/A' }}</div>
             </div>
 
             <div class="fundamental-card">
@@ -406,6 +480,27 @@ onMounted(async () => {
                 <Info :size="14" />
                 <span>Mede a volatilidade em relação ao mercado</span>
               </div>
+            </div>
+
+            <!-- Novas métricas de qualidade -->
+            <div class="fundamental-card">
+              <div class="fundamental-label">ROE (Return on Equity)</div>
+              <div class="fundamental-value">{{ fundamentals.roe ? formatPercent(fundamentals.roe * 100) : 'N/A' }}</div>
+            </div>
+
+            <div class="fundamental-card">
+              <div class="fundamental-label">ROA (Return on Assets)</div>
+              <div class="fundamental-value">{{ fundamentals.roa ? formatPercent(fundamentals.roa * 100) : 'N/A' }}</div>
+            </div>
+
+            <div class="fundamental-card">
+              <div class="fundamental-label">Margem Líquida</div>
+              <div class="fundamental-value">{{ fundamentals.net_margin ? formatPercent(fundamentals.net_margin * 100) : 'N/A' }}</div>
+            </div>
+
+            <div class="fundamental-card">
+              <div class="fundamental-label">Dívida/Patrimônio</div>
+              <div class="fundamental-value">{{ fundamentals.debt_to_equity ? formatPercent(fundamentals.debt_to_equity * 100) : 'N/A' }}</div>
             </div>
 
             <div class="fundamental-card full-width">
@@ -423,6 +518,114 @@ onMounted(async () => {
               <div class="fundamental-value">
                 {{ fundamentals.market_cap ? formatCurrency(fundamentals.market_cap) : 'N/A' }}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'balance' && financialStatements" class="balance-tab">
+          <div class="ticker-header">
+            <h3>{{ financialStatements.ticker }}</h3>
+          </div>
+
+          <div class="statement-tabs">
+            <button
+              @click="activeStatementTab = 'income'"
+              :class="['statement-tab-button', { active: activeStatementTab === 'income' }]"
+            >
+              DRE
+            </button>
+            <button
+              @click="activeStatementTab = 'balance'"
+              :class="['statement-tab-button', { active: activeStatementTab === 'balance' }]"
+            >
+              Balanço Patrimonial
+            </button>
+            <button
+              @click="activeStatementTab = 'cashflow'"
+              :class="['statement-tab-button', { active: activeStatementTab === 'cashflow' }]"
+            >
+              Fluxo de Caixa
+            </button>
+          </div>
+
+          <!-- DRE (Income Statement) -->
+          <div v-if="activeStatementTab === 'income' && financialStatements.income_statement" class="statement-content">
+            <div v-if="financialStatements.income_statement.periods.length === 0" class="empty-statement">
+              <p>Dados da DRE não disponíveis para este ticker.</p>
+            </div>
+            <div v-else class="financial-table-container">
+              <table class="financial-table">
+                <thead>
+                  <tr>
+                    <th>Conta</th>
+                    <th v-for="period in financialStatements.income_statement.periods" :key="period">
+                      {{ new Date(period).toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }) }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in financialStatements.income_statement.data" :key="row.account">
+                    <td class="account-name">{{ row.account }}</td>
+                    <td v-for="period in financialStatements.income_statement.periods" :key="period" class="account-value">
+                      {{ formatFinancialValue(row.values[period]) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Balanço Patrimonial -->
+          <div v-if="activeStatementTab === 'balance' && financialStatements.balance_sheet" class="statement-content">
+            <div v-if="financialStatements.balance_sheet.periods.length === 0" class="empty-statement">
+              <p>Dados do Balanço Patrimonial não disponíveis para este ticker.</p>
+            </div>
+            <div v-else class="financial-table-container">
+              <table class="financial-table">
+                <thead>
+                  <tr>
+                    <th>Conta</th>
+                    <th v-for="period in financialStatements.balance_sheet.periods" :key="period">
+                      {{ new Date(period).toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }) }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in financialStatements.balance_sheet.data" :key="row.account">
+                    <td class="account-name">{{ row.account }}</td>
+                    <td v-for="period in financialStatements.balance_sheet.periods" :key="period" class="account-value">
+                      {{ formatFinancialValue(row.values[period]) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Fluxo de Caixa -->
+          <div v-if="activeStatementTab === 'cashflow' && financialStatements.cash_flow" class="statement-content">
+            <div v-if="financialStatements.cash_flow.periods.length === 0" class="empty-statement">
+              <p>Dados do Fluxo de Caixa não disponíveis para este ticker.</p>
+            </div>
+            <div v-else class="financial-table-container">
+              <table class="financial-table">
+                <thead>
+                  <tr>
+                    <th>Conta</th>
+                    <th v-for="period in financialStatements.cash_flow.periods" :key="period">
+                      {{ new Date(period).toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }) }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in financialStatements.cash_flow.data" :key="row.account">
+                    <td class="account-name">{{ row.account }}</td>
+                    <td v-for="period in financialStatements.cash_flow.periods" :key="period" class="account-value">
+                      {{ formatFinancialValue(row.values[period]) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

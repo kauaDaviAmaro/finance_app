@@ -3,7 +3,7 @@ from celery.schedules import crontab
 from app.core.config import settings
 from app.db.database import SessionLocal, engine
 from app.core.market_service import get_all_tracked_tickers, update_ticker_prices, check_and_trigger_alerts
-from app.core.market.ticker_utils import get_all_b3_tickers
+from app.core.market.ticker_utils import get_all_b3_tickers, remove_tickers_from_json
 from app.core.market.technical_analysis import get_all_scanner_indicators
 from app.db.models import Base, ScannerData, DailyScanResult
 import logging
@@ -169,6 +169,7 @@ def _run_full_market_scan_logic():
         
         success_count = 0
         error_count = 0
+        invalid_tickers = []  # Lista de tickers que não existem para remover do JSON
         delay_between_requests = 0.5  # Delay para evitar rate limiting do yfinance
         
         for idx, ticker in enumerate(all_tickers, 1):
@@ -184,6 +185,20 @@ def _run_full_market_scan_logic():
                 ])
                 
                 has_daily_data = all_indicators.get('last_price') is not None
+                
+                # Verificar se o ticker é inválido (não existe ou não tem dados)
+                # Um ticker é considerado inválido se não tem preço E não tem RSI
+                is_invalid = (
+                    all_indicators.get('last_price') is None and 
+                    all_indicators.get('rsi_14') is None
+                )
+                
+                if is_invalid:
+                    invalid_tickers.append(ticker)
+                    error_count += 1
+                    logger.debug(f"Ticker {ticker}: sem dados disponíveis (ticker inválido/delistado)")
+                    # Não atualizar banco para tickers inválidos
+                    continue
                 
                 # Atualizar ScannerData apenas se tivermos dados válidos
                 if has_scanner_data:
@@ -232,13 +247,10 @@ def _run_full_market_scan_logic():
                 # Contar como sucesso apenas se tivermos pelo menos alguns dados
                 if has_scanner_data or has_daily_data:
                     success_count += 1
-                else:
-                    error_count += 1
-                    logger.debug(f"Ticker {ticker}: sem dados disponíveis (possivelmente delistado)")
                 
                 # Log de progresso a cada 50 tickers
                 if idx % 50 == 0:
-                    logger.info(f"Progresso: {idx}/{len(all_tickers)} tickers processados ({success_count} sucesso, {error_count} erros)")
+                    logger.info(f"Progresso: {idx}/{len(all_tickers)} tickers processados ({success_count} sucesso, {error_count} erros, {len(invalid_tickers)} inválidos)")
                     db.commit()  # Commit periódico para não perder dados
                 
                 # Delay entre requisições para evitar rate limiting
@@ -246,6 +258,8 @@ def _run_full_market_scan_logic():
                 
             except Exception as e:
                 error_count += 1
+                # Adicionar à lista de inválidos se houver erro ao buscar dados
+                invalid_tickers.append(ticker)
                 logger.warning(f"Erro ao processar ticker {ticker}: {e}")
                 # Continuar processamento mesmo se um ticker falhar
                 continue
@@ -253,12 +267,21 @@ def _run_full_market_scan_logic():
         # Commit final
         db.commit()
         
+        # Remover tickers inválidos do arquivo JSON
+        if invalid_tickers:
+            try:
+                removed_count = remove_tickers_from_json(invalid_tickers)
+                logger.info(f"Removidos {removed_count} tickers inválidos do arquivo JSON: {', '.join(invalid_tickers[:10])}{'...' if len(invalid_tickers) > 10 else ''}")
+            except Exception as e:
+                logger.error(f"Erro ao remover tickers inválidos do JSON: {e}")
+        
         logger.info(
             f"Scan completo concluído! "
-            f"Total: {len(all_tickers)}, Sucesso: {success_count}, Erros: {error_count}"
+            f"Total: {len(all_tickers)}, Sucesso: {success_count}, Erros: {error_count}, "
+            f"Tickers inválidos removidos: {len(invalid_tickers)}"
         )
         
-        return f"Scan completo concluído. {success_count}/{len(all_tickers)} tickers processados com sucesso."
+        return f"Scan completo concluído. {success_count}/{len(all_tickers)} tickers processados com sucesso. {len(invalid_tickers)} tickers inválidos removidos."
 
     except Exception as e:
         logger.error(f"Erro crítico no scan completo do mercado: {e}", exc_info=True)

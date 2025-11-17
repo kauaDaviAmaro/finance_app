@@ -121,6 +121,20 @@ function getRSIStatus(rsi: number | undefined): { status: string; color: string 
   return { status: 'Neutro', color: '#64748b' }
 }
 
+function getQualityScoreColor(score: number | undefined): string {
+  if (score === undefined || score === null) return '#64748b'
+  if (score >= 70) return '#16a34a' // Verde
+  if (score >= 50) return '#eab308' // Amarelo
+  return '#dc2626' // Vermelho
+}
+
+function getQualityScoreLabel(score: number | undefined): string {
+  if (score === undefined || score === null) return 'N/A'
+  if (score >= 70) return 'Excelente'
+  if (score >= 50) return 'Bom'
+  return 'Baixo'
+}
+
 // Gráficos comparativos
 const priceChartData = computed(() => {
   if (!comparisonData.value) return { labels: [], datasets: [] }
@@ -702,6 +716,17 @@ onMounted(async () => {
               </div>
 
               <div class="fundamentals-grid">
+                <!-- Quality Score Card -->
+                <div class="fundamental-card quality-score-card" :style="{ borderColor: getQualityScoreColor(comparisonData.ticker1_fundamentals.quality_score) }">
+                  <div class="fundamental-label">Score de Qualidade</div>
+                  <div class="fundamental-value quality-score-value" :style="{ color: getQualityScoreColor(comparisonData.ticker1_fundamentals.quality_score) }">
+                    {{ comparisonData.ticker1_fundamentals.quality_score?.toFixed(1) || 'N/A' }}
+                  </div>
+                  <div class="quality-score-label" :style="{ color: getQualityScoreColor(comparisonData.ticker1_fundamentals.quality_score) }">
+                    {{ getQualityScoreLabel(comparisonData.ticker1_fundamentals.quality_score) }}
+                  </div>
+                </div>
+
                 <div class="fundamental-card">
                   <div class="fundamental-label">P/L (Price-to-Earnings)</div>
                   <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.pe_ratio?.toFixed(2) || 'N/A' }}</div>
@@ -713,13 +738,44 @@ onMounted(async () => {
                 </div>
 
                 <div class="fundamental-card">
+                  <div class="fundamental-label">EV/EBITDA</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.ev_ebitda?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">P/EBIT</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.pebit_ratio?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
                   <div class="fundamental-label">Dividend Yield</div>
-                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.dividend_yield ? formatPercent(comparisonData.ticker1_fundamentals.dividend_yield) : 'N/A' }}</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.dividend_yield ? formatPercent(comparisonData.ticker1_fundamentals.dividend_yield * 100) : 'N/A' }}</div>
                 </div>
 
                 <div class="fundamental-card">
                   <div class="fundamental-label">Beta</div>
                   <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.beta?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <!-- Novas métricas de qualidade -->
+                <div class="fundamental-card">
+                  <div class="fundamental-label">ROE</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.roe ? formatPercent(comparisonData.ticker1_fundamentals.roe * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">ROA</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.roa ? formatPercent(comparisonData.ticker1_fundamentals.roa * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">Margem Líquida</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.net_margin ? formatPercent(comparisonData.ticker1_fundamentals.net_margin * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">Dívida/Patrimônio</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker1_fundamentals.debt_to_equity ? formatPercent(comparisonData.ticker1_fundamentals.debt_to_equity * 100) : 'N/A' }}</div>
                 </div>
 
                 <div class="fundamental-card full-width">
@@ -748,6 +804,17 @@ onMounted(async () => {
               </div>
 
               <div class="fundamentals-grid">
+                <!-- Quality Score Card -->
+                <div class="fundamental-card quality-score-card" :style="{ borderColor: getQualityScoreColor(comparisonData.ticker2_fundamentals.quality_score) }">
+                  <div class="fundamental-label">Score de Qualidade</div>
+                  <div class="fundamental-value quality-score-value" :style="{ color: getQualityScoreColor(comparisonData.ticker2_fundamentals.quality_score) }">
+                    {{ comparisonData.ticker2_fundamentals.quality_score?.toFixed(1) || 'N/A' }}
+                  </div>
+                  <div class="quality-score-label" :style="{ color: getQualityScoreColor(comparisonData.ticker2_fundamentals.quality_score) }">
+                    {{ getQualityScoreLabel(comparisonData.ticker2_fundamentals.quality_score) }}
+                  </div>
+                </div>
+
                 <div class="fundamental-card">
                   <div class="fundamental-label">P/L (Price-to-Earnings)</div>
                   <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.pe_ratio?.toFixed(2) || 'N/A' }}</div>
@@ -759,13 +826,44 @@ onMounted(async () => {
                 </div>
 
                 <div class="fundamental-card">
+                  <div class="fundamental-label">EV/EBITDA</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.ev_ebitda?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">P/EBIT</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.pebit_ratio?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
                   <div class="fundamental-label">Dividend Yield</div>
-                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.dividend_yield ? formatPercent(comparisonData.ticker2_fundamentals.dividend_yield) : 'N/A' }}</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.dividend_yield ? formatPercent(comparisonData.ticker2_fundamentals.dividend_yield * 100) : 'N/A' }}</div>
                 </div>
 
                 <div class="fundamental-card">
                   <div class="fundamental-label">Beta</div>
                   <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.beta?.toFixed(2) || 'N/A' }}</div>
+                </div>
+
+                <!-- Novas métricas de qualidade -->
+                <div class="fundamental-card">
+                  <div class="fundamental-label">ROE</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.roe ? formatPercent(comparisonData.ticker2_fundamentals.roe * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">ROA</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.roa ? formatPercent(comparisonData.ticker2_fundamentals.roa * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">Margem Líquida</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.net_margin ? formatPercent(comparisonData.ticker2_fundamentals.net_margin * 100) : 'N/A' }}</div>
+                </div>
+
+                <div class="fundamental-card">
+                  <div class="fundamental-label">Dívida/Patrimônio</div>
+                  <div class="fundamental-value">{{ comparisonData.ticker2_fundamentals.debt_to_equity ? formatPercent(comparisonData.ticker2_fundamentals.debt_to_equity * 100) : 'N/A' }}</div>
                 </div>
 
                 <div class="fundamental-card full-width">

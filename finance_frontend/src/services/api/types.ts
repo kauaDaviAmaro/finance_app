@@ -76,6 +76,13 @@ export interface Fundamentals {
   sector?: string
   industry?: string
   market_cap?: number
+  roe?: number
+  roa?: number
+  net_margin?: number
+  debt_to_equity?: number
+  ev_ebitda?: number
+  pebit_ratio?: number
+  quality_score?: number
 }
 
 export interface TickerRequest {
@@ -102,6 +109,37 @@ export interface TickerComparison {
   ticker2_data: TechnicalAnalysis
   ticker1_fundamentals: Fundamentals
   ticker2_fundamentals: Fundamentals
+}
+
+// Financial Statements Types
+export interface FinancialStatementRow {
+  account: string
+  values: Record<string, number | null>
+}
+
+export interface IncomeStatement {
+  ticker: string
+  periods: string[]
+  data: FinancialStatementRow[]
+}
+
+export interface BalanceSheet {
+  ticker: string
+  periods: string[]
+  data: FinancialStatementRow[]
+}
+
+export interface CashFlow {
+  ticker: string
+  periods: string[]
+  data: FinancialStatementRow[]
+}
+
+export interface FinancialStatements {
+  ticker: string
+  income_statement: IncomeStatement
+  balance_sheet: BalanceSheet
+  cash_flow: CashFlow
 }
 
 // Portfolio Types
@@ -239,6 +277,7 @@ export interface ScannerRow {
   bb_upper: number | null
   bb_lower: number | null
   timestamp: string
+  quality_score?: number | null
 }
 
 export type ScannerSort = 'rsi_asc' | 'rsi_desc' | 'macd_desc'

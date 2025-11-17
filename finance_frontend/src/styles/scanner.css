@@ -436,6 +436,15 @@
   font-weight: 600;
 }
 
+.quality-score-badge {
+  font-weight: 700;
+  font-size: 15px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.03);
+  display: inline-block;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;

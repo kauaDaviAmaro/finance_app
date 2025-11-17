@@ -36,6 +36,7 @@ export const api = {
   getFundamentals: stocksApi.getFundamentals,
   getMostSearchedTickers: stocksApi.getMostSearchedTickers,
   compareTickers: stocksApi.compareTickers,
+  getFinancialStatements: stocksApi.getFinancialStatements,
   
   // Portfolio methods
   getPortfolio: portfolioApi.getPortfolio,

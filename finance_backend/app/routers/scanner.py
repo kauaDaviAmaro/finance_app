@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.core.security import get_pro_user
 from app.db.models import User, ScannerData
 from app.db.database import get_db
+from app.core.market.data_fetcher import get_company_fundamentals
 from sqlalchemy.orm import Session
 from typing import Optional, Literal, List
 
@@ -91,17 +92,27 @@ def get_scanner_results(
         # Aplicar limite e executar query
         results: List[ScannerData] = query.limit(limit).all()
         
-        # Formatar resposta
-        return [
-            {
+        # Formatar resposta e buscar quality_score em tempo real
+        formatted_results = []
+        for r in results:
+            quality_score = None
+            try:
+                fundamentals = get_company_fundamentals(r.ticker)
+                quality_score = fundamentals.get('quality_score')
+            except Exception:
+                # Se falhar ao buscar, continua sem o score
+                pass
+            
+            formatted_results.append({
                 "ticker": r.ticker,
                 "rsi_14": float(r.rsi_14) if r.rsi_14 is not None else None,
                 "macd_signal": float(r.macd_signal) if r.macd_signal is not None else None,
                 "mm_9_cruza_mm_21": r.mm_9_cruza_mm_21,
                 "last_updated": r.last_updated.isoformat() if r.last_updated else None,
-            }
-            for r in results
-        ]
+                "quality_score": quality_score,
+            })
+        
+        return formatted_results
         
     except HTTPException:
         raise

@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient'
-import type { TickerHistoricalData, TechnicalAnalysis, Fundamentals, MostSearchedTicker, TickerComparisonRequest, TickerComparison } from './types'
+import type { TickerHistoricalData, TechnicalAnalysis, Fundamentals, MostSearchedTicker, TickerComparisonRequest, TickerComparison, FinancialStatements } from './types'
 
 export const stocksApi = {
   async getHistoricalData(ticker: string, period: string = '1y'): Promise<TickerHistoricalData> {
@@ -36,6 +36,11 @@ export const stocksApi = {
       ticker2,
       period,
     })
+    return response.data
+  },
+
+  async getFinancialStatements(ticker: string): Promise<FinancialStatements> {
+    const response = await apiClient.get<FinancialStatements>(`/stocks/financial-statements/${ticker}`)
     return response.data
   },
 }

@@ -86,6 +86,12 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
       EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_ID_PRO: ${STRIPE_PRICE_ID_PRO:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:3000/subscription/success}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:3000/subscription/cancel}
+      STRIPE_RETURN_URL: ${STRIPE_RETURN_URL:-http://localhost:3000/subscription}
     ports:
       - "${API_PORT:-8000}:8000"
     networks:

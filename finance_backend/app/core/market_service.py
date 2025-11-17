@@ -11,6 +11,9 @@ from app.core.market import (
     update_ticker_prices,
     get_all_tracked_tickers,
     check_and_trigger_alerts,
+    get_income_statement,
+    get_balance_sheet,
+    get_cashflow,
 )
 
 # Exportar tudo para manter compatibilidade
@@ -23,6 +26,9 @@ __all__ = [
     'update_ticker_prices',
     'get_all_tracked_tickers',
     'check_and_trigger_alerts',
+    'get_income_statement',
+    'get_balance_sheet',
+    'get_cashflow',
 ]
 
 # Manter compatibilidade com código que usa _format_ticker (privado)

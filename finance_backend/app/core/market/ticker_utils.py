@@ -25,29 +25,6 @@ def format_ticker(ticker: str) -> str:
     return ticker_upper
 
 
-# Universo de análise: componentes do IBOV (lista editável)
-IBOV_TICKERS = [
-    # Blue chips
-    "PETR4", "PETR3", "VALE3", "ITUB4", "BBDC4", "ABEV3", "BBAS3", "B3SA3",
-    "WEGE3", "SUZB3", "GGBR4", "CSNA3", "USIM5", "KLBN11", "ELET3", "ELET6",
-    "PRIO3", "RAIZ4", "VIVT3", "TIMS3", "ELET3", "ELET6",
-    # Consumo e varejo
-    "MGLU3", "VIIA3", "LREN3", "AMER3", "ARZZ3", "ALPA4", "PCAR3", "PETZ3",
-    # Siderurgia e papel
-    "BRFS3", "EMBR3", "SUZB3", "KLBN11",
-    # Energia e saneamento
-    "ENBR3", "CMIG4", "CPLE6", "TAEE11", "EQTL3",
-    # Construção e imobiliário
-    "MRVE3", "CYRE3", "EZTC3",
-    # Educação e tecnologia
-    "LWSA3", "COGN3", "POSI3",
-    # Transporte e turismo
-    "AZUL4", "GOLL4", "CVCB3",
-    # Locação e serviços
-    "RENT3", "LCAM3",
-]
-
-
 def get_all_b3_tickers() -> List[str]:
     """
     Lê a lista completa de tickers B3 do arquivo JSON estático local.
@@ -73,3 +50,50 @@ def get_all_b3_tickers() -> List[str]:
         raise ValueError(f"Erro ao decodificar JSON de tickers B3: {e}")
     except Exception as e:
         raise RuntimeError(f"Erro ao ler arquivo de tickers B3: {e}")
+
+
+def remove_tickers_from_json(tickers_to_remove: List[str]) -> int:
+    """
+    Remove tickers do arquivo JSON estático.
+    
+    Args:
+        tickers_to_remove: Lista de tickers a serem removidos (ex: ['TICKER1', 'TICKER2'])
+    
+    Returns:
+        Número de tickers removidos
+    """
+    if not tickers_to_remove:
+        return 0
+    
+    current_dir = Path(__file__).parent
+    json_path = current_dir / "static" / "b3_stocks_tickers.json"
+    
+    try:
+        # Ler arquivo atual
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Converter para set para busca mais rápida
+        tickers_to_remove_set = {ticker.upper() for ticker in tickers_to_remove}
+        
+        # Filtrar tickers a serem removidos
+        original_count = len(data)
+        data = [item for item in data if item.get('ticker', '').upper() not in tickers_to_remove_set]
+        removed_count = original_count - len(data)
+        
+        # Salvar arquivo atualizado
+        if removed_count > 0:
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+        
+        return removed_count
+        
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Arquivo de tickers B3 não encontrado em {json_path}. "
+            "Certifique-se de que o arquivo b3_stocks_tickers.json está em app/core/market/static/"
+        )
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Erro ao decodificar JSON de tickers B3: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar arquivo de tickers B3: {e}")

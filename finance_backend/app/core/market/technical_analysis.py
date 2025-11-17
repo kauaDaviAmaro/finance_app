@@ -8,6 +8,7 @@ import pandas_ta as ta
 from typing import Optional, Literal
 
 from app.core.market.ticker_utils import format_ticker
+from app.core.market.data_fetcher import get_company_fundamentals
 
 
 def get_technical_analysis(ticker: str, period: str = "1y") -> list[dict]:
@@ -309,7 +310,8 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
                 'macd_h': None,
                 'mm_9_cruza_mm_21': 'NEUTRAL',
                 'bb_upper': None,
-                'bb_lower': None
+                'bb_lower': None,
+                'quality_score': None
             }
         
         data.reset_index(inplace=True)
@@ -378,6 +380,14 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
             import traceback
             traceback.print_exc()
         
+        # Buscar quality_score dos fundamentos
+        quality_score = None
+        try:
+            fundamentals = get_company_fundamentals(ticker)
+            quality_score = fundamentals.get('quality_score')
+        except Exception as e:
+            print(f"Erro ao buscar quality_score para {formatted_ticker}: {e}")
+        
         return {
             'last_price': last_price,
             'rsi_14': rsi_14,
@@ -385,7 +395,8 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
             'macd_h': macd_h,
             'mm_9_cruza_mm_21': mm_cross or 'NEUTRAL',
             'bb_upper': bb_upper,
-            'bb_lower': bb_lower
+            'bb_lower': bb_lower,
+            'quality_score': quality_score
         }
         
     except Exception as e:
@@ -397,7 +408,8 @@ def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
             'macd_h': None,
             'mm_9_cruza_mm_21': 'NEUTRAL',
             'bb_upper': None,
-            'bb_lower': None
+            'bb_lower': None,
+            'quality_score': None
         }
 
 

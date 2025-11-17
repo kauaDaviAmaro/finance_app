@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import date
 
 class TickerRequest(BaseModel):
@@ -52,6 +52,13 @@ class FundamentalsOut(BaseModel):
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+    roe: Optional[float] = None
+    roa: Optional[float] = None
+    net_margin: Optional[float] = None
+    debt_to_equity: Optional[float] = None
+    ev_ebitda: Optional[float] = None
+    pebit_ratio: Optional[float] = None
+    quality_score: Optional[float] = None
 
 class TickerComparisonRequest(BaseModel):
     ticker1: str = Field(..., min_length=1, description="Primeiro ticker para comparação")
@@ -66,3 +73,28 @@ class TickerComparisonOut(BaseModel):
     ticker2_data: TechnicalAnalysisOut
     ticker1_fundamentals: FundamentalsOut
     ticker2_fundamentals: FundamentalsOut
+
+class FinancialStatementRow(BaseModel):
+    account: str
+    values: Dict[str, Optional[float]]
+
+class IncomeStatementOut(BaseModel):
+    ticker: str
+    periods: List[str]
+    data: List[FinancialStatementRow]
+
+class BalanceSheetOut(BaseModel):
+    ticker: str
+    periods: List[str]
+    data: List[FinancialStatementRow]
+
+class CashFlowOut(BaseModel):
+    ticker: str
+    periods: List[str]
+    data: List[FinancialStatementRow]
+
+class FinancialStatementsOut(BaseModel):
+    ticker: str
+    income_statement: IncomeStatementOut
+    balance_sheet: BalanceSheetOut
+    cash_flow: CashFlowOut

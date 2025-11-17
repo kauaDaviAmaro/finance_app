@@ -24,6 +24,7 @@ ticker_utils = importlib.util.module_from_spec(spec)
 sys.modules['app.core.market.ticker_utils'] = ticker_utils
 spec.loader.exec_module(ticker_utils)
 get_all_b3_tickers = ticker_utils.get_all_b3_tickers
+remove_tickers_from_json = ticker_utils.remove_tickers_from_json
 
 # Carregar technical_analysis diretamente (agora pode importar ticker_utils sem problemas)
 tech_analysis_path = os.path.join(backend_dir, 'app', 'core', 'market', 'technical_analysis.py')
@@ -82,12 +83,27 @@ def run_scanner():
         
         success_count = 0
         error_count = 0
+        invalid_tickers = []  # Lista de tickers que não existem para remover do JSON
         delay_between_requests = 0.5  # Delay para evitar rate limiting do yfinance
         
         for idx, ticker in enumerate(all_tickers, 1):
             try:
                 # Calcular indicadores técnicos
                 indicators = get_scanner_indicators(ticker)
+                
+                # Verificar se o ticker é inválido (não existe ou não tem dados)
+                # Um ticker é considerado inválido se não tem RSI e não tem MACD signal
+                is_invalid = (
+                    indicators.get('rsi_14') is None and 
+                    indicators.get('macd_signal') is None
+                )
+                
+                if is_invalid:
+                    invalid_tickers.append(ticker)
+                    error_count += 1
+                    logger.debug(f"Ticker {ticker}: sem dados disponíveis (ticker inválido/delistado)")
+                    # Não atualizar banco para tickers inválidos
+                    continue
                 
                 # Fazer UPSERT na tabela scanner_data
                 scanner_data = db.query(ScannerData).filter(ScannerData.ticker == ticker).first()
@@ -112,7 +128,7 @@ def run_scanner():
                 
                 # Log de progresso a cada 50 tickers
                 if idx % 50 == 0:
-                    logger.info(f"Progresso: {idx}/{len(all_tickers)} tickers processados ({success_count} sucesso, {error_count} erros)")
+                    logger.info(f"Progresso: {idx}/{len(all_tickers)} tickers processados ({success_count} sucesso, {error_count} erros, {len(invalid_tickers)} inválidos)")
                     db.commit()  # Commit periódico para não perder dados
                 
                 # Delay entre requisições para evitar rate limiting
@@ -120,6 +136,8 @@ def run_scanner():
                 
             except Exception as e:
                 error_count += 1
+                # Adicionar à lista de inválidos se houver erro ao buscar dados
+                invalid_tickers.append(ticker)
                 logger.warning(f"Erro ao processar ticker {ticker}: {e}")
                 # Continuar processamento mesmo se um ticker falhar
                 continue
@@ -127,12 +145,21 @@ def run_scanner():
         # Commit final
         db.commit()
         
+        # Remover tickers inválidos do arquivo JSON
+        if invalid_tickers:
+            try:
+                removed_count = remove_tickers_from_json(invalid_tickers)
+                logger.info(f"Removidos {removed_count} tickers inválidos do arquivo JSON: {', '.join(invalid_tickers[:10])}{'...' if len(invalid_tickers) > 10 else ''}")
+            except Exception as e:
+                logger.error(f"Erro ao remover tickers inválidos do JSON: {e}")
+        
         logger.info(
             f"Scan completo concluído! "
-            f"Total: {len(all_tickers)}, Sucesso: {success_count}, Erros: {error_count}"
+            f"Total: {len(all_tickers)}, Sucesso: {success_count}, Erros: {error_count}, "
+            f"Tickers inválidos removidos: {len(invalid_tickers)}"
         )
         
-        return f"Scan completo concluído. {success_count}/{len(all_tickers)} tickers processados com sucesso."
+        return f"Scan completo concluído. {success_count}/{len(all_tickers)} tickers processados com sucesso. {len(invalid_tickers)} tickers inválidos removidos."
 
     except Exception as e:
         logger.error(f"Erro crítico no scan completo do mercado: {e}", exc_info=True)

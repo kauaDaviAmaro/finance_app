@@ -12,9 +12,10 @@ export interface ScannerParams {
 }
 
 export async function getScannerResults(params: ScannerParams = {}): Promise<ScannerRow[]> {
-  const { data } = await apiClient.get<ScannerRow[]>('/stocks/scanner', { params })
+  const { data } = await apiClient.get<ScannerRow[]>('/scanner/', { params })
   return data
 }
+
 
 
 

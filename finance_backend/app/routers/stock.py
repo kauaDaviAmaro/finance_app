@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.schemas.stock import (
     TickerRequest, TickerHistoricalDataOut, TechnicalAnalysisOut, FundamentalsOut,
-    TickerComparisonRequest, TickerComparisonOut
+    TickerComparisonRequest, TickerComparisonOut,
+    FinancialStatementsOut, IncomeStatementOut, BalanceSheetOut, CashFlowOut,
+    FinancialStatementRow
 )
 from app.core.market_service import (
-    get_historical_data, get_technical_analysis, get_company_fundamentals
+    get_historical_data, get_technical_analysis, get_company_fundamentals,
+    get_income_statement, get_balance_sheet, get_cashflow
 )
 from app.core.security import get_current_user, get_pro_user
 from app.db.models import User, DailyScanResult, TickerSearch
@@ -155,6 +158,60 @@ def fetch_fundamentals(
         raise HTTPException(
             status_code=500,
             detail=f"Erro no servidor ao buscar fundamentos: {e}"
+        )
+
+
+@router.get("/financial-statements/{ticker}", response_model=FinancialStatementsOut)
+def fetch_financial_statements(
+    ticker: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Busca as demonstrações financeiras de uma empresa:
+    DRE (Income Statement), Balanço Patrimonial (Balance Sheet) e Fluxo de Caixa (Cash Flow).
+    """
+    try:
+        # Buscar as três demonstrações
+        income_statement_data = get_income_statement(ticker)
+        balance_sheet_data = get_balance_sheet(ticker)
+        cashflow_data = get_cashflow(ticker)
+        
+        # Registrar pesquisa
+        log_ticker_search(ticker, current_user.id, db)
+        
+        # Construir objetos de resposta
+        income_statement = IncomeStatementOut(
+            ticker=ticker,
+            periods=income_statement_data.get('periods', []),
+            data=[FinancialStatementRow(**row) for row in income_statement_data.get('data', [])]
+        )
+        
+        balance_sheet = BalanceSheetOut(
+            ticker=ticker,
+            periods=balance_sheet_data.get('periods', []),
+            data=[FinancialStatementRow(**row) for row in balance_sheet_data.get('data', [])]
+        )
+        
+        cash_flow = CashFlowOut(
+            ticker=ticker,
+            periods=cashflow_data.get('periods', []),
+            data=[FinancialStatementRow(**row) for row in cashflow_data.get('data', [])]
+        )
+        
+        return FinancialStatementsOut(
+            ticker=ticker,
+            income_statement=income_statement,
+            balance_sheet=balance_sheet,
+            cash_flow=cash_flow
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no servidor ao buscar demonstrações financeiras: {e}"
         )
 
 
