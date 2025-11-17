@@ -39,3 +39,4 @@ test('FREE user is redirected to subscription when accessing /scanner', async ({
 
 
 
+

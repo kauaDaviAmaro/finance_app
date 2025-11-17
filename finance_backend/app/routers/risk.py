@@ -307,3 +307,4 @@ def get_position_risk_analysis(
             detail=f"Erro ao calcular análise de risco: {str(e)}"
         )
 
+

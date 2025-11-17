@@ -633,3 +633,218 @@ export interface ElliottAnnotationCreate {
   annotations: WavePoint[]
 }
 
+// Financial Planning Types
+export type InvestmentGoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+
+export interface InvestmentGoal {
+  id: number
+  name: string
+  target_amount: number
+  current_amount: number
+  target_date: string
+  portfolio_id?: number | null
+  status: InvestmentGoalStatus
+  progress_percentage: number
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface InvestmentGoalCreate {
+  name: string
+  target_amount: number
+  current_amount?: number
+  target_date: string
+  portfolio_id?: number | null
+}
+
+export interface InvestmentGoalUpdate {
+  name?: string
+  target_amount?: number
+  current_amount?: number
+  target_date?: string
+  portfolio_id?: number | null
+  status?: InvestmentGoalStatus
+}
+
+export interface InvestmentGoalList {
+  goals: InvestmentGoal[]
+}
+
+export interface FinancialPlan {
+  id: number
+  name: string
+  description?: string | null
+  monthly_income?: number | null
+  monthly_expenses?: number | null
+  emergency_fund_target?: number | null
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface FinancialPlanCreate {
+  name: string
+  description?: string | null
+  monthly_income?: number | null
+  monthly_expenses?: number | null
+  emergency_fund_target?: number | null
+}
+
+export interface FinancialPlanUpdate {
+  name?: string
+  description?: string | null
+  monthly_income?: number | null
+  monthly_expenses?: number | null
+  emergency_fund_target?: number | null
+}
+
+export interface FinancialPlanList {
+  plans: FinancialPlan[]
+}
+
+export interface RetirementPlan {
+  id: number
+  current_age: number
+  retirement_age: number
+  current_savings: number
+  monthly_contribution: number
+  expected_return_rate: number
+  inflation_rate: number
+  target_monthly_income: number
+  years_until_retirement: number
+  projected_savings: number
+  required_savings: number
+  is_on_track: boolean
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface RetirementPlanCreate {
+  current_age: number
+  retirement_age: number
+  current_savings?: number
+  monthly_contribution?: number
+  expected_return_rate?: number
+  inflation_rate?: number
+  target_monthly_income: number
+}
+
+export interface RetirementPlanUpdate {
+  current_age?: number
+  retirement_age?: number
+  current_savings?: number
+  monthly_contribution?: number
+  expected_return_rate?: number
+  inflation_rate?: number
+  target_monthly_income?: number
+}
+
+export interface RetirementPlanList {
+  plans: RetirementPlan[]
+}
+
+export interface WealthHistory {
+  id: number
+  date: string
+  total_value: number
+  portfolio_value: number
+  cash_value: number
+  notes?: string | null
+  created_at: string
+}
+
+export interface WealthHistoryCreate {
+  date: string
+  total_value: number
+  portfolio_value?: number
+  cash_value?: number
+  notes?: string | null
+}
+
+export interface WealthHistoryUpdate {
+  date?: string
+  total_value?: number
+  portfolio_value?: number
+  cash_value?: number
+  notes?: string | null
+}
+
+export interface WealthHistoryList {
+  history: WealthHistory[]
+}
+
+export interface ProjectionPoint {
+  year: number
+  value: number
+  contributions: number
+  returns: number
+}
+
+export interface ScenarioProjection {
+  scenario: string
+  points: ProjectionPoint[]
+  final_value: number
+  total_contributions: number
+  total_returns: number
+}
+
+export interface PortfolioProjectionRequest {
+  portfolio_id?: number | null
+  years?: number
+  monthly_contribution?: number
+  expected_return_rate?: number | null
+  scenarios?: boolean
+}
+
+export interface PortfolioProjectionResponse {
+  initial_value: number
+  years: number
+  monthly_contribution: number
+  expected_return_rate: number
+  realistic: ScenarioProjection
+  optimistic?: ScenarioProjection | null
+  pessimistic?: ScenarioProjection | null
+}
+
+export interface ContributionStrategy {
+  type: string
+  initial_amount: number
+  growth_rate?: number | null
+  periods?: Array<Record<string, any>> | null
+}
+
+export interface ContributionSimulationRequest {
+  initial_value: number
+  years: number
+  expected_return_rate: number
+  strategies: ContributionStrategy[]
+}
+
+export interface ContributionSimulationResult {
+  strategy_name: string
+  strategy_type: string
+  final_value: number
+  total_contributions: number
+  total_returns: number
+  points: ProjectionPoint[]
+}
+
+export interface ContributionSimulationResponse {
+  initial_value: number
+  years: number
+  expected_return_rate: number
+  results: ContributionSimulationResult[]
+}
+
+export interface WealthAnalysisResponse {
+  current_value: number
+  historical_data: WealthHistory[]
+  growth_rate?: number | null
+  annual_returns: Array<{
+    year: number
+    return: number
+    value: number
+    end_value: number
+  }>
+  projection_comparison?: Record<string, any> | null
+}
+

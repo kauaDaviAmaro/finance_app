@@ -30,3 +30,4 @@ COMMENT ON COLUMN support_messages.category IS 'Category: general, technical, bi
 
 
 
+

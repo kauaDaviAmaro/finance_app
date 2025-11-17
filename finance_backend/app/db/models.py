@@ -423,3 +423,96 @@ class ElliottAnnotation(Base):
     
     def __repr__(self):
         return f"<ElliottAnnotation(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', period='{self.period}')>"
+
+
+class InvestmentGoalStatus(PyEnum):
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class InvestmentGoal(Base):
+    __tablename__ = "investment_goals"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    target_amount = Column(Numeric(18, 2), nullable=False)
+    current_amount = Column(Numeric(18, 2), nullable=False, default=0)
+    target_date = Column(Date, nullable=False)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id", ondelete="SET NULL"), nullable=True, index=True)
+    status = Column(SAEnum(InvestmentGoalStatus, name="investment_goal_status"), nullable=False, default=InvestmentGoalStatus.ACTIVE)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    user = relationship("User", backref="investment_goals")
+    portfolio = relationship("Portfolio", backref="investment_goals")
+    
+    def __repr__(self):
+        return f"<InvestmentGoal(id={self.id}, user_id={self.user_id}, name='{self.name}', target={self.target_amount})>"
+
+
+class FinancialPlan(Base):
+    __tablename__ = "financial_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    monthly_income = Column(Numeric(18, 2), nullable=True)
+    monthly_expenses = Column(Numeric(18, 2), nullable=True)
+    emergency_fund_target = Column(Numeric(18, 2), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    user = relationship("User", backref="financial_plans")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='uq_user_financial_plan_name'),
+    )
+    
+    def __repr__(self):
+        return f"<FinancialPlan(id={self.id}, user_id={self.user_id}, name='{self.name}')>"
+
+
+class RetirementPlan(Base):
+    __tablename__ = "retirement_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    current_age = Column(Integer, nullable=False)
+    retirement_age = Column(Integer, nullable=False)
+    current_savings = Column(Numeric(18, 2), nullable=False, default=0)
+    monthly_contribution = Column(Numeric(18, 2), nullable=False, default=0)
+    expected_return_rate = Column(Numeric(5, 2), nullable=False, default=7.0)  # % anual
+    inflation_rate = Column(Numeric(5, 2), nullable=False, default=3.0)  # % anual
+    target_monthly_income = Column(Numeric(18, 2), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    user = relationship("User", backref="retirement_plans")
+    
+    def __repr__(self):
+        return f"<RetirementPlan(id={self.id}, user_id={self.user_id}, current_age={self.current_age}, retirement_age={self.retirement_age})>"
+
+
+class WealthHistory(Base):
+    __tablename__ = "wealth_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    total_value = Column(Numeric(18, 2), nullable=False)
+    portfolio_value = Column(Numeric(18, 2), nullable=False, default=0)
+    cash_value = Column(Numeric(18, 2), nullable=False, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", backref="wealth_history")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'date', name='uq_user_wealth_date'),
+    )
+    
+    def __repr__(self):
+        return f"<WealthHistory(id={self.id}, user_id={self.user_id}, date={self.date}, total_value={self.total_value})>"

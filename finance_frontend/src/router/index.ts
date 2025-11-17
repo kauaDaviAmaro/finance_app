@@ -197,6 +197,17 @@ const router = createRouter({
         noindex: true,
       },
     },
+    {
+      path: '/financial-planning',
+      name: 'FinancialPlanning',
+      component: () => import('../views/FinancialPlanning.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Planejamento Financeiro - Finance App',
+        description: 'Gerencie metas de investimento, projeções de portfólio, planejamento de aposentadoria e análise de patrimônio.',
+        noindex: true,
+      },
+    },
     // Admin Routes
     {
       path: '/admin',

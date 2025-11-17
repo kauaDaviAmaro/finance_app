@@ -15,6 +15,7 @@ export { userApi } from './user.api'
 export { notificationsApi } from './notifications.api'
 export { backtestingApi } from './backtesting.api'
 export { riskApi } from './risk.api'
+export { financialPlanningApi } from './financial-planning.api'
 
 // Unified API object for backward compatibility
 import { authApi } from './auth.api'
