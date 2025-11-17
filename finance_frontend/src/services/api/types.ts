@@ -282,3 +282,276 @@ export interface ScannerRow {
 
 export type ScannerSort = 'rsi_asc' | 'rsi_desc' | 'macd_desc'
 
+// Backtesting Types
+export type StrategyType = 'GRAPHICAL' | 'JSON'
+export type ConditionType = 'ENTRY' | 'EXIT'
+export type ConditionLogic = 'AND' | 'OR'
+export type PaperTradeStatus = 'ACTIVE' | 'PAUSED' | 'STOPPED'
+
+export interface StrategyCondition {
+  id?: number
+  strategy_id?: number
+  condition_type: ConditionType
+  indicator: string
+  operator: string
+  value?: number | null
+  logic: ConditionLogic
+  order: number
+}
+
+export interface StrategyConditionCreate {
+  condition_type: ConditionType
+  indicator: string
+  operator: string
+  value?: number | null
+  logic?: ConditionLogic
+  order?: number
+}
+
+export interface Strategy {
+  id: number
+  user_id: number
+  name: string
+  description?: string | null
+  strategy_type: StrategyType
+  json_config?: Record<string, any> | null
+  initial_capital: number
+  position_size: number
+  created_at: string
+  updated_at?: string | null
+  conditions: StrategyCondition[]
+}
+
+export interface StrategyCreate {
+  name: string
+  description?: string | null
+  strategy_type?: StrategyType
+  json_config?: Record<string, any> | null
+  initial_capital?: number
+  position_size?: number
+  conditions: StrategyConditionCreate[]
+}
+
+export interface StrategyCreateJSON {
+  name: string
+  description?: string | null
+  json_config: Record<string, any>
+  initial_capital?: number
+  position_size?: number
+}
+
+export interface StrategyUpdate {
+  name?: string
+  description?: string | null
+  initial_capital?: number
+  position_size?: number
+  conditions?: StrategyConditionCreate[]
+}
+
+export interface BacktestRunRequest {
+  strategy_id: number
+  ticker: string
+  period?: string
+}
+
+export interface BacktestTrade {
+  id: number
+  backtest_id: number
+  trade_date: string
+  trade_type: string
+  price: number
+  quantity: number
+  pnl?: number | null
+  capital_after?: number | null
+}
+
+export interface Backtest {
+  id: number
+  user_id: number
+  strategy_id: number
+  ticker: string
+  period: string
+  start_date?: string | null
+  end_date?: string | null
+  total_return?: number | null
+  annualized_return?: number | null
+  sharpe_ratio?: number | null
+  max_drawdown?: number | null
+  win_rate?: number | null
+  profit_factor?: number | null
+  total_trades: number
+  winning_trades: number
+  losing_trades: number
+  avg_win?: number | null
+  avg_loss?: number | null
+  final_capital?: number | null
+  created_at: string
+  trades: BacktestTrade[]
+}
+
+export interface BacktestResultDetail {
+  backtest: Backtest
+  equity_curve: Array<{ date: string; equity: number }>
+}
+
+export interface BacktestCompareRequest {
+  strategy_ids: number[]
+  ticker: string
+  period?: string
+}
+
+export interface BacktestCompareResult {
+  ticker: string
+  period: string
+  strategies: Backtest[]
+}
+
+export interface PaperTradeStartRequest {
+  strategy_id: number
+  ticker: string
+  initial_capital?: number
+}
+
+export interface PaperTradePosition {
+  id: number
+  paper_trade_id: number
+  ticker: string
+  quantity: number
+  entry_price: number
+  entry_date: string
+  exit_price?: number | null
+  exit_date?: string | null
+  pnl?: number | null
+}
+
+export interface PaperTrade {
+  id: number
+  user_id: number
+  strategy_id: number
+  ticker: string
+  initial_capital: number
+  current_capital: number
+  status: PaperTradeStatus
+  started_at: string
+  stopped_at?: string | null
+  last_update: string
+  positions: PaperTradePosition[]
+}
+
+export interface PaperTradeStatusOut {
+  paper_trade: PaperTrade
+  current_equity: number
+  total_return: number
+  open_positions_count: number
+  positions_value: number
+}
+
+export interface PaperTradeSignal {
+  entry_signal: boolean
+  exit_signal: boolean
+  current_price: number
+  timestamp: string
+}
+
+// Risk Management Types
+export interface VarResult {
+  var_value: number | null
+  var_percentage: number | null
+  method: string
+  confidence_level: number
+  horizon_days: number
+  error?: string | null
+}
+
+export interface DrawdownPoint {
+  date: string
+  value: number
+  drawdown: number
+}
+
+export interface DrawdownAnalysis {
+  max_drawdown: number | null
+  current_drawdown: number | null
+  max_drawdown_date: string | null
+  recovery_days: number | null
+  drawdown_history: DrawdownPoint[]
+}
+
+export interface PositionBeta {
+  ticker: string
+  beta: number | null
+  error?: string | null
+}
+
+export interface BetaAnalysis {
+  portfolio_beta: number | null
+  position_betas: PositionBeta[]
+  benchmark: string
+  error?: string | null
+}
+
+export interface PositionVolatility {
+  ticker: string
+  volatility: number | null
+  error?: string | null
+}
+
+export interface VolatilityAnalysis {
+  portfolio_volatility: number | null
+  position_volatilities: PositionVolatility[]
+}
+
+export interface TickerConcentration {
+  ticker: string
+  weight: number
+}
+
+export interface SectorDiversification {
+  sector: string
+  weight: number
+  industries: string[]
+  tickers: string[]
+}
+
+export interface DiversificationMetrics {
+  herfindahl_index: number | null
+  concentration_by_ticker: TickerConcentration[]
+  sector_diversification: SectorDiversification[]
+  effective_positions: number | null
+  warnings: string[]
+}
+
+export interface RiskMetrics {
+  var: VarResult
+  drawdown: DrawdownAnalysis
+  beta: BetaAnalysis
+  volatility: VolatilityAnalysis
+  diversification: DiversificationMetrics
+}
+
+export interface PositionCorrelation {
+  ticker: string
+  correlation: number
+}
+
+export interface PositionRiskAnalysis {
+  ticker: string
+  var: number | null
+  var_percentage: number | null
+  beta: number | null
+  volatility: number | null
+  portfolio_weight: number
+  correlations: PositionCorrelation[]
+  stop_loss: number | null
+  take_profit: number | null
+  stop_loss_percentage: number | null
+  take_profit_percentage: number | null
+  error?: string | null
+}
+
+export interface PortfolioRiskAnalysis {
+  portfolio_id: number
+  metrics: RiskMetrics
+  position_analyses: PositionRiskAnalysis[]
+}
+

@@ -13,6 +13,8 @@ export { alertsApi } from './alerts.api'
 export { subscriptionApi } from './subscription.api'
 export { userApi } from './user.api'
 export { notificationsApi } from './notifications.api'
+export { backtestingApi } from './backtesting.api'
+export { riskApi } from './risk.api'
 
 // Unified API object for backward compatibility
 import { authApi } from './auth.api'
@@ -23,6 +25,7 @@ import { alertsApi } from './alerts.api'
 import { subscriptionApi } from './subscription.api'
 import { userApi } from './user.api'
 import { notificationsApi } from './notifications.api'
+import { backtestingApi } from './backtesting.api'
 
 export const api = {
   // Auth methods
@@ -69,5 +72,22 @@ export const api = {
   markAsRead: notificationsApi.markAsRead,
   markAllAsRead: notificationsApi.markAllAsRead,
   deleteNotification: notificationsApi.deleteNotification,
+  
+  // Backtesting methods
+  getStrategies: backtestingApi.getStrategies,
+  getStrategy: backtestingApi.getStrategy,
+  createStrategy: backtestingApi.createStrategy,
+  updateStrategy: backtestingApi.updateStrategy,
+  deleteStrategy: backtestingApi.deleteStrategy,
+  runBacktest: backtestingApi.runBacktest,
+  getBacktestResult: backtestingApi.getBacktestResult,
+  getBacktestResults: backtestingApi.getBacktestResults,
+  compareStrategies: backtestingApi.compareStrategies,
+  startPaperTrading: backtestingApi.startPaperTrading,
+  getPaperTradingStatus: backtestingApi.getPaperTradingStatus,
+  stopPaperTrading: backtestingApi.stopPaperTrading,
+  pausePaperTrading: backtestingApi.pausePaperTrading,
+  getPaperTradingPositions: backtestingApi.getPaperTradingPositions,
+  getPaperTradingHistory: backtestingApi.getPaperTradingHistory,
 }
 

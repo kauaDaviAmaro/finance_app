@@ -162,6 +162,29 @@ const router = createRouter({
         noindex: true,
       },
     },
+    {
+      path: '/backtesting',
+      name: 'Backtesting',
+      component: () => import('../views/Backtesting.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Backtesting - Finance App',
+        description: 'Crie e teste estratégias de trading com dados históricos.',
+        noindex: true,
+      },
+    },
+    {
+      path: '/paper-trading',
+      name: 'PaperTrading',
+      component: () => import('../views/PaperTrading.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresPro: true,
+        title: 'Paper Trading - Finance App',
+        description: 'Simule estratégias em tempo real sem risco (PRO).',
+        noindex: true,
+      },
+    },
     // Admin Routes
     {
       path: '/admin',

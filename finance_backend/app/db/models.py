@@ -242,3 +242,163 @@ class TickerSearch(Base):
     
     def __repr__(self):
         return f"<TickerSearch(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', created_at={self.created_at})>"
+
+
+class StrategyType(PyEnum):
+    GRAPHICAL = "GRAPHICAL"
+    JSON = "JSON"
+
+
+class ConditionType(PyEnum):
+    ENTRY = "ENTRY"
+    EXIT = "EXIT"
+
+
+class ConditionLogic(PyEnum):
+    AND = "AND"
+    OR = "OR"
+
+
+class Strategy(Base):
+    __tablename__ = "strategies"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    strategy_type = Column(SAEnum(StrategyType, name="strategy_type"), nullable=False, default=StrategyType.GRAPHICAL)
+    json_config = Column(JSON, nullable=True)  # Para estratégias JSON customizadas
+    initial_capital = Column(Numeric(18, 2), nullable=False, default=100000.00)
+    position_size = Column(Numeric(5, 2), nullable=False, default=100.00)  # % do capital por trade
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    user = relationship("User", backref="strategies")
+    conditions = relationship("StrategyCondition", back_populates="strategy", cascade="all, delete-orphan")
+    backtests = relationship("Backtest", back_populates="strategy", cascade="all, delete-orphan")
+    paper_trades = relationship("PaperTrade", back_populates="strategy", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='uq_user_strategy_name'),
+    )
+    
+    def __repr__(self):
+        return f"<Strategy(id={self.id}, user_id={self.user_id}, name='{self.name}', type='{self.strategy_type}')>"
+
+
+class StrategyCondition(Base):
+    __tablename__ = "strategy_conditions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    condition_type = Column(SAEnum(ConditionType, name="condition_type"), nullable=False)
+    indicator = Column(String(50), nullable=False)  # RSI, MACD, etc.
+    operator = Column(String(20), nullable=False)  # GREATER_THAN, LESS_THAN, CROSS_ABOVE, etc.
+    value = Column(Numeric(18, 6), nullable=True)  # Valor de comparação
+    logic = Column(SAEnum(ConditionLogic, name="condition_logic"), nullable=False, default=ConditionLogic.AND)
+    order = Column(Integer, nullable=False, default=0)  # Ordem de avaliação
+    
+    strategy = relationship("Strategy", back_populates="conditions")
+    
+    def __repr__(self):
+        return f"<StrategyCondition(id={self.id}, strategy_id={self.strategy_id}, type='{self.condition_type}', indicator='{self.indicator}')>"
+
+
+class Backtest(Base):
+    __tablename__ = "backtests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False)
+    period = Column(String(20), nullable=False)  # 1y, 6mo, etc.
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    
+    # Métricas de performance
+    total_return = Column(Numeric(10, 4), nullable=True)  # %
+    annualized_return = Column(Numeric(10, 4), nullable=True)  # %
+    sharpe_ratio = Column(Numeric(10, 4), nullable=True)
+    max_drawdown = Column(Numeric(10, 4), nullable=True)  # %
+    win_rate = Column(Numeric(5, 2), nullable=True)  # %
+    profit_factor = Column(Numeric(10, 4), nullable=True)
+    total_trades = Column(Integer, nullable=False, default=0)
+    winning_trades = Column(Integer, nullable=False, default=0)
+    losing_trades = Column(Integer, nullable=False, default=0)
+    avg_win = Column(Numeric(18, 2), nullable=True)
+    avg_loss = Column(Numeric(18, 2), nullable=True)
+    final_capital = Column(Numeric(18, 2), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", backref="backtests")
+    strategy = relationship("Strategy", back_populates="backtests")
+    trades = relationship("BacktestTrade", back_populates="backtest", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Backtest(id={self.id}, strategy_id={self.strategy_id}, ticker='{self.ticker}', return={self.total_return}%)>"
+
+
+class BacktestTrade(Base):
+    __tablename__ = "backtest_trades"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    backtest_id = Column(Integer, ForeignKey("backtests.id", ondelete="CASCADE"), nullable=False, index=True)
+    trade_date = Column(Date, nullable=False)
+    trade_type = Column(String(10), nullable=False)  # BUY, SELL
+    price = Column(Numeric(18, 6), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    pnl = Column(Numeric(18, 2), nullable=True)  # P&L realizado
+    capital_after = Column(Numeric(18, 2), nullable=True)
+    
+    backtest = relationship("Backtest", back_populates="trades")
+    
+    def __repr__(self):
+        return f"<BacktestTrade(id={self.id}, backtest_id={self.backtest_id}, type='{self.trade_type}', pnl={self.pnl})>"
+
+
+class PaperTradeStatus(PyEnum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    STOPPED = "STOPPED"
+
+
+class PaperTrade(Base):
+    __tablename__ = "paper_trades"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False)
+    initial_capital = Column(Numeric(18, 2), nullable=False)
+    current_capital = Column(Numeric(18, 2), nullable=False)
+    status = Column(SAEnum(PaperTradeStatus, name="paper_trade_status"), nullable=False, default=PaperTradeStatus.ACTIVE)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    stopped_at = Column(DateTime(timezone=True), nullable=True)
+    last_update = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User", backref="paper_trades")
+    strategy = relationship("Strategy", back_populates="paper_trades")
+    positions = relationship("PaperTradePosition", back_populates="paper_trade", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<PaperTrade(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', status='{self.status}')>"
+
+
+class PaperTradePosition(Base):
+    __tablename__ = "paper_trade_positions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    paper_trade_id = Column(Integer, ForeignKey("paper_trades.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker = Column(String(20), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    entry_price = Column(Numeric(18, 6), nullable=False)
+    entry_date = Column(DateTime(timezone=True), server_default=func.now())
+    exit_price = Column(Numeric(18, 6), nullable=True)
+    exit_date = Column(DateTime(timezone=True), nullable=True)
+    pnl = Column(Numeric(18, 2), nullable=True)
+    
+    paper_trade = relationship("PaperTrade", back_populates="positions")
+    
+    def __repr__(self):
+        return f"<PaperTradePosition(id={self.id}, paper_trade_id={self.paper_trade_id}, ticker='{self.ticker}', quantity={self.quantity})>"

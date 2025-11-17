@@ -11,6 +11,7 @@ python-jose[cryptography]
 yfinance
 pandas
 pandas-ta
+scipy
 celery[redis]
 pytest
 pytest-cov

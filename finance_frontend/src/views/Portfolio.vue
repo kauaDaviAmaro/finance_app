@@ -2,10 +2,33 @@
 import { onMounted, ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { portfolioApi, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate, type Portfolio, type PortfolioCreate } from '../services/api/index'
-import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Search, Edit2, FolderPlus, ChevronDown } from 'lucide-vue-next'
+import { portfolioApi, riskApi, ApiError, type PortfolioSummary, type PortfolioItem, type PortfolioItemCreate, type PortfolioItemUpdate, type Portfolio, type PortfolioCreate, type PortfolioRiskAnalysis } from '../services/api/index'
+import { BarChart, Plus, Trash2, Loader2, AlertCircle, X, DollarSign, TrendingUp, TrendingDown, Search, Edit2, FolderPlus, ChevronDown, Shield, Activity, AlertTriangle, TrendingDown as TrendingDownIcon, ChevronRight } from 'lucide-vue-next'
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
 import Navbar from '../components/Navbar.vue'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -27,6 +50,10 @@ const editingPortfolio = ref<Portfolio | null>(null)
 const showPortfolioDropdown = ref(false)
 const showDeleteModal = ref(false)
 const portfolioToDelete = ref<Portfolio | null>(null)
+const riskAnalysis = ref<PortfolioRiskAnalysis | null>(null)
+const loadingRisk = ref(false)
+const showRiskSection = ref(true)
+const expandedPositions = ref<Set<number>>(new Set())
 
 const newPosition = ref<PortfolioItemCreate>({
   portfolio_id: 0,
@@ -137,6 +164,12 @@ async function loadPortfolio() {
   try {
     portfolio.value = await portfolioApi.getPortfolio(selectedPortfolioId.value)
     newPosition.value.portfolio_id = selectedPortfolioId.value
+    // Carregar análise de risco se houver posições ativas
+    if (activePositions.value.length > 0) {
+      await loadRiskAnalysis()
+    } else {
+      riskAnalysis.value = null
+    }
   } catch (err) {
     if (err instanceof ApiError) {
       error.value = err.message
@@ -146,6 +179,83 @@ async function loadPortfolio() {
     console.error(err)
   } finally {
     loading.value = false
+  }
+}
+
+async function loadRiskAnalysis() {
+  if (!selectedPortfolioId.value || activePositions.value.length === 0) {
+    return
+  }
+  
+  loadingRisk.value = true
+  try {
+    riskAnalysis.value = await riskApi.getPortfolioRiskAnalysis(selectedPortfolioId.value)
+  } catch (err) {
+    console.error('Erro ao carregar análise de risco:', err)
+    riskAnalysis.value = null
+  } finally {
+    loadingRisk.value = false
+  }
+}
+
+function togglePositionExpansion(index: number) {
+  if (expandedPositions.value.has(index)) {
+    expandedPositions.value.delete(index)
+  } else {
+    expandedPositions.value.add(index)
+  }
+}
+
+// Chart data for drawdown
+const drawdownChartData = computed(() => {
+  if (!riskAnalysis.value?.metrics.drawdown.drawdown_history.length) {
+    return {
+      labels: [],
+      datasets: []
+    }
+  }
+  
+  const history = riskAnalysis.value.metrics.drawdown.drawdown_history
+  return {
+    labels: history.map(h => {
+      const date = new Date(h.date)
+      return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })
+    }),
+    datasets: [
+      {
+        label: 'Drawdown (%)',
+        data: history.map(h => h.drawdown),
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  }
+})
+
+const drawdownChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      mode: 'index' as const,
+      intersect: false,
+      callbacks: {
+        label: (context: any) => `Drawdown: ${context.parsed.y.toFixed(2)}%`
+      }
+    }
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        callback: (value: any) => `${value}%`
+      }
+    }
   }
 }
 
@@ -563,6 +673,227 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- Risk Analysis Section -->
+      <div v-if="portfolio && activePositions.length > 0" class="risk-section">
+        <div class="risk-header">
+          <div class="risk-title-group">
+            <Shield :size="24" class="risk-icon" />
+            <div>
+              <h2>Análise de Risco</h2>
+              <p class="risk-subtitle">Métricas de risco e gestão do portfólio</p>
+            </div>
+          </div>
+          <button @click="showRiskSection = !showRiskSection" class="toggle-risk-button">
+            <ChevronRight :size="20" :class="{ rotated: showRiskSection }" />
+          </button>
+        </div>
+
+        <div v-if="showRiskSection" class="risk-content">
+          <div v-if="loadingRisk" class="risk-loading">
+            <Loader2 :size="32" class="spinner" />
+            <p>Carregando análise de risco...</p>
+          </div>
+
+          <div v-else-if="riskAnalysis" class="risk-metrics">
+            <!-- Risk Metrics Cards -->
+            <div class="risk-cards-grid">
+              <div class="risk-card">
+                <div class="risk-card-header">
+                  <Activity :size="20" class="risk-card-icon" />
+                  <h3>Value at Risk (VaR)</h3>
+                </div>
+                <div class="risk-card-content">
+                  <p v-if="riskAnalysis.metrics.var.var_value" class="risk-value">
+                    {{ formatCurrency(riskAnalysis.metrics.var.var_value) }}
+                  </p>
+                  <p v-else class="risk-value no-data">N/A</p>
+                  <p v-if="riskAnalysis.metrics.var.var_percentage" class="risk-percentage">
+                    {{ riskAnalysis.metrics.var.var_percentage.toFixed(2) }}%
+                  </p>
+                  <p class="risk-label">95% confiança, 1 dia</p>
+                </div>
+              </div>
+
+              <div class="risk-card">
+                <div class="risk-card-header">
+                  <TrendingDownIcon :size="20" class="risk-card-icon" />
+                  <h3>Drawdown Máximo</h3>
+                </div>
+                <div class="risk-card-content">
+                  <p v-if="riskAnalysis.metrics.drawdown.max_drawdown !== null" class="risk-value negative">
+                    {{ riskAnalysis.metrics.drawdown.max_drawdown.toFixed(2) }}%
+                  </p>
+                  <p v-else class="risk-value no-data">N/A</p>
+                  <p v-if="riskAnalysis.metrics.drawdown.current_drawdown !== null" class="risk-percentage">
+                    Atual: {{ riskAnalysis.metrics.drawdown.current_drawdown.toFixed(2) }}%
+                  </p>
+                  <p class="risk-label">Maior queda desde o pico</p>
+                </div>
+              </div>
+
+              <div class="risk-card">
+                <div class="risk-card-header">
+                  <BarChart :size="20" class="risk-card-icon" />
+                  <h3>Beta</h3>
+                </div>
+                <div class="risk-card-content">
+                  <p v-if="riskAnalysis.metrics.beta.portfolio_beta !== null" class="risk-value">
+                    {{ riskAnalysis.metrics.beta.portfolio_beta.toFixed(2) }}
+                  </p>
+                  <p v-else class="risk-value no-data">N/A</p>
+                  <p class="risk-label">vs {{ riskAnalysis.metrics.beta.benchmark }}</p>
+                </div>
+              </div>
+
+              <div class="risk-card">
+                <div class="risk-card-header">
+                  <Activity :size="20" class="risk-card-icon" />
+                  <h3>Volatilidade</h3>
+                </div>
+                <div class="risk-card-content">
+                  <p v-if="riskAnalysis.metrics.volatility.portfolio_volatility !== null" class="risk-value">
+                    {{ riskAnalysis.metrics.volatility.portfolio_volatility.toFixed(2) }}%
+                  </p>
+                  <p v-else class="risk-value no-data">N/A</p>
+                  <p class="risk-label">Anualizada</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Drawdown Chart -->
+            <div v-if="drawdownChartData.labels.length > 0" class="risk-chart-card">
+              <h3>Histórico de Drawdown</h3>
+              <div class="drawdown-chart-container">
+                <Line :data="drawdownChartData" :options="drawdownChartOptions" />
+              </div>
+            </div>
+
+            <!-- Diversification -->
+            <div class="diversification-section">
+              <h3>Diversificação</h3>
+              <div class="diversification-metrics">
+                <div class="diversification-metric">
+                  <span class="metric-label">Índice de Herfindahl:</span>
+                  <span class="metric-value">
+                    {{ riskAnalysis.metrics.diversification.herfindahl_index?.toFixed(4) || 'N/A' }}
+                  </span>
+                </div>
+                <div class="diversification-metric">
+                  <span class="metric-label">Posições Efetivas:</span>
+                  <span class="metric-value">
+                    {{ riskAnalysis.metrics.diversification.effective_positions?.toFixed(1) || 'N/A' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Warnings -->
+              <div v-if="riskAnalysis.metrics.diversification.warnings.length > 0" class="risk-warnings">
+                <AlertTriangle :size="20" class="warning-icon" />
+                <div class="warnings-list">
+                  <p v-for="(warning, idx) in riskAnalysis.metrics.diversification.warnings" :key="idx" class="warning-item">
+                    {{ warning }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Sector Diversification -->
+              <div v-if="riskAnalysis.metrics.diversification.sector_diversification.length > 0" class="sector-table">
+                <h4>Diversificação por Setor</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Setor</th>
+                      <th>Peso</th>
+                      <th>Tickers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(sector, idx) in riskAnalysis.metrics.diversification.sector_diversification" :key="idx">
+                      <td>{{ sector.sector }}</td>
+                      <td>{{ sector.weight.toFixed(2) }}%</td>
+                      <td>{{ sector.tickers.join(', ') }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Position Risk Analysis -->
+            <div class="position-risk-section">
+              <h3>Análise de Risco por Posição</h3>
+              <div class="position-risk-list">
+                <div
+                  v-for="(posAnalysis, idx) in riskAnalysis.position_analyses"
+                  :key="idx"
+                  class="position-risk-item"
+                >
+                  <div class="position-risk-header" @click="togglePositionExpansion(idx)">
+                    <div class="position-risk-info">
+                      <h4>{{ posAnalysis.ticker }}</h4>
+                      <span class="position-weight">{{ posAnalysis.portfolio_weight }}% do portfólio</span>
+                    </div>
+                    <ChevronRight :size="20" :class="{ rotated: expandedPositions.has(idx) }" />
+                  </div>
+                  
+                  <div v-if="expandedPositions.has(idx)" class="position-risk-details">
+                    <div class="risk-details-grid">
+                      <div class="risk-detail">
+                        <span class="detail-label">VaR:</span>
+                        <span class="detail-value">
+                          {{ posAnalysis.var ? formatCurrency(posAnalysis.var) : 'N/A' }}
+                          <span v-if="posAnalysis.var_percentage">({{ posAnalysis.var_percentage.toFixed(2) }}%)</span>
+                        </span>
+                      </div>
+                      <div class="risk-detail">
+                        <span class="detail-label">Beta:</span>
+                        <span class="detail-value">{{ posAnalysis.beta?.toFixed(2) || 'N/A' }}</span>
+                      </div>
+                      <div class="risk-detail">
+                        <span class="detail-label">Volatilidade:</span>
+                        <span class="detail-value">{{ posAnalysis.volatility?.toFixed(2) || 'N/A' }}%</span>
+                      </div>
+                      <div v-if="posAnalysis.stop_loss" class="risk-detail">
+                        <span class="detail-label">Stop Loss:</span>
+                        <span class="detail-value negative">
+                          {{ formatCurrency(posAnalysis.stop_loss) }}
+                          <span v-if="posAnalysis.stop_loss_percentage">({{ posAnalysis.stop_loss_percentage.toFixed(2) }}%)</span>
+                        </span>
+                      </div>
+                      <div v-if="posAnalysis.take_profit" class="risk-detail">
+                        <span class="detail-label">Take Profit:</span>
+                        <span class="detail-value positive">
+                          {{ formatCurrency(posAnalysis.take_profit) }}
+                          <span v-if="posAnalysis.take_profit_percentage">({{ posAnalysis.take_profit_percentage.toFixed(2) }}%)</span>
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div v-if="posAnalysis.correlations.length > 0" class="correlations">
+                      <h5>Correlações</h5>
+                      <div class="correlations-list">
+                        <span
+                          v-for="(corr, corrIdx) in posAnalysis.correlations"
+                          :key="corrIdx"
+                          class="correlation-tag"
+                        >
+                          {{ corr.ticker }}: {{ corr.correlation.toFixed(2) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="risk-error">
+            <AlertCircle :size="24" />
+            <p>Não foi possível carregar a análise de risco</p>
+            <button @click="loadRiskAnalysis()" class="retry-button">Tentar novamente</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Portfolio Form Modal -->
       <Teleport to="body">
         <Transition name="modal">
@@ -952,5 +1283,6 @@ onUnmounted(() => {
 
 <style scoped>
 @import '../styles/portfolio.css';
+@import '../styles/risk.css';
 </style>
 

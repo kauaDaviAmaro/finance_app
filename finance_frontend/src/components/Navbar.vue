@@ -22,7 +22,7 @@ let notificationsInterval: ReturnType<typeof setInterval> | null = null
 const isGroupActive = (groupName: string) => {
   const groups: Record<string, string[]> = {
     investimentos: ['/home', '/portfolio', '/watchlist'],
-    analise: ['/market-analysis', '/compare', '/scanner'],
+    analise: ['/market-analysis', '/compare', '/scanner', '/backtesting', '/paper-trading'],
     alertas: ['/alerts'],
     ajuda: ['/support']
   }
@@ -291,9 +291,17 @@ onUnmounted(() => {
                 <GitCompare :size="16" />
                 <span>Comparar Tickers</span>
           </router-link>
+              <router-link to="/backtesting" class="dropdown-item" @click="closeMenus">
+                <BarChart :size="16" />
+                <span>Backtesting</span>
+          </router-link>
               <router-link v-if="isPro" to="/scanner" class="dropdown-item" @click="closeMenus">
                 <Crown :size="16" />
             <span>Scanner (PRO)</span>
+          </router-link>
+              <router-link v-if="isPro" to="/paper-trading" class="dropdown-item" @click="closeMenus">
+                <Crown :size="16" />
+            <span>Paper Trading (PRO)</span>
           </router-link>
             </div>
           </div>
@@ -529,9 +537,17 @@ onUnmounted(() => {
           <GitCompare :size="20" />
           <span>Comparar</span>
         </router-link>
+        <router-link to="/backtesting" class="mobile-nav-link" aria-label="Backtesting">
+          <BarChart :size="20" />
+          <span>Backtesting</span>
+        </router-link>
         <router-link to="/scanner" class="mobile-nav-link" aria-label="Scanner (PRO)">
           <Crown :size="20" />
           <span>Scanner (PRO)</span>
+        </router-link>
+        <router-link v-if="isPro" to="/paper-trading" class="mobile-nav-link" aria-label="Paper Trading (PRO)">
+          <Crown :size="20" />
+          <span>Paper Trading (PRO)</span>
         </router-link>
         <router-link to="/support" class="mobile-nav-link" aria-label="Suporte">
           <HelpCircle :size="20" />

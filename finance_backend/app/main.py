@@ -143,6 +143,8 @@ from app.routers import admin as admin_router
 from app.routers import support as support_router
 from app.routers import notification as notification_router
 from app.routers import scanner as scanner_router
+from app.routers import backtesting as backtesting_router
+from app.routers import risk as risk_router
 
 # Inclui as rotas
 app.include_router(auth_router.router)
@@ -155,6 +157,8 @@ app.include_router(subscription_router.router)
 app.include_router(support_router.router)
 app.include_router(notification_router.router)
 app.include_router(scanner_router.router)
+app.include_router(backtesting_router.router)
+app.include_router(risk_router.router)
 app.include_router(admin_router.router, prefix="/admin", tags=["admin"])
 
 @app.get("/health")

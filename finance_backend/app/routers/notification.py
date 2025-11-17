@@ -24,15 +24,31 @@ def get_vapid_public_key():
     """
     Retorna a chave pública VAPID para o frontend.
     """
-    from app.core.config import settings
-    
-    if not settings.VAPID_PUBLIC_KEY:
+    try:
+        from app.core.config import settings
+        
+        # Verifica se a chave está configurada
+        vapid_key = getattr(settings, 'VAPID_PUBLIC_KEY', None)
+        
+        if not vapid_key:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="VAPID public key não configurada. Configure VAPID_PUBLIC_KEY no arquivo .env"
+            )
+        
+        return {"public_key": vapid_key}
+    except AttributeError as e:
+        logger.error(f"Erro ao acessar VAPID_PUBLIC_KEY: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="VAPID public key não configurada"
+            detail="VAPID public key não configurada. Configure VAPID_PUBLIC_KEY no arquivo .env"
         )
-    
-    return {"public_key": settings.VAPID_PUBLIC_KEY}
+    except Exception as e:
+        logger.error(f"Erro inesperado ao buscar VAPID public key: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar chave VAPID: {str(e)}"
+        )
 
 
 @router.post("/subscribe", response_model=PushSubscriptionOut, status_code=status.HTTP_201_CREATED)
