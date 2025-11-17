@@ -27,3 +27,5 @@ COMMENT ON COLUMN support_messages.status IS 'Status: pending, in_progress, reso
 COMMENT ON COLUMN support_messages.category IS 'Category: general, technical, billing, feature';
 
 
+
+

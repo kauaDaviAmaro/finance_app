@@ -29,6 +29,10 @@ logs/
 todo.txt
 todo.md
 
+# Celery
+celerybeat-schedule
+celerybeat-schedule.*
+
 # Docker
 .dockerignore
 

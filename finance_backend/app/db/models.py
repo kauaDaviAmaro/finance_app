@@ -228,3 +228,17 @@ class PushSubscription(Base):
     
     def __repr__(self):
         return f"<PushSubscription(id={self.id}, user_id={self.user_id}, endpoint='{self.endpoint[:50]}...')>"
+
+
+class TickerSearch(Base):
+    __tablename__ = "ticker_searches"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    ticker = Column(String(20), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    user = relationship("User", backref="ticker_searches")
+    
+    def __repr__(self):
+        return f"<TickerSearch(id={self.id}, user_id={self.user_id}, ticker='{self.ticker}', created_at={self.created_at})>"

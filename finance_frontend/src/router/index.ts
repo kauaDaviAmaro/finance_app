@@ -74,6 +74,17 @@ const router = createRouter({
       },
     },
     {
+      path: '/compare',
+      name: 'Compare',
+      component: () => import('../views/Compare.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Comparar Tickers - Finance App',
+        description: 'Compare análise técnica e fundamentos de dois ativos lado a lado. Gráficos comparativos com RSI, MACD e indicadores técnicos.',
+        noindex: true,
+      },
+    },
+    {
       path: '/watchlist',
       name: 'Watchlist',
       component: () => import('../views/Watchlist.vue'),

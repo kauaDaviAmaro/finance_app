@@ -49,3 +49,5 @@ class NotificationListResponse(BaseModel):
 class NotificationReadResponse(BaseModel):
     message: str = "Notificação marcada como lida"
 
+
+

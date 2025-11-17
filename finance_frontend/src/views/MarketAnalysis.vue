@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { api, ApiError, type TechnicalAnalysis, type Fundamentals } from '../services/api/index'
-import { TrendingUp, Search, BarChart, Activity, DollarSign, Info } from 'lucide-vue-next'
+import { TrendingUp, Search, BarChart, Activity, DollarSign, Info, Plus, Eye, Loader2, X } from 'lucide-vue-next'
 import PriceChart from '../components/PriceChart.vue'
 import VolumeChart from '../components/VolumeChart.vue'
 import RSIChart from '../components/RSIChart.vue'
@@ -21,6 +21,9 @@ const error = ref('')
 const technicalData = ref<TechnicalAnalysis | null>(null)
 const fundamentals = ref<Fundamentals | null>(null)
 const activeTab = ref<'technical' | 'fundamentals'>('technical')
+const isInWatchlist = ref(false)
+const addingToWatchlist = ref(false)
+const removingFromWatchlist = ref(false)
 
 // Safely get the last technical data point for template usage without TS errors
 const lastItem = computed(() => {
@@ -39,6 +42,56 @@ const periodOptions = [
   { value: '5y', label: '5 Anos' },
   { value: 'max', label: 'Máximo' },
 ]
+
+async function checkWatchlist() {
+  if (!ticker.value.trim()) {
+    isInWatchlist.value = false
+    return
+  }
+  
+  try {
+    const watchlist = await api.getWatchlist()
+    isInWatchlist.value = watchlist.items.some(item => item.ticker === ticker.value.toUpperCase())
+  } catch (e) {
+    isInWatchlist.value = false
+  }
+}
+
+async function addToWatchlist() {
+  if (!ticker.value.trim() || isInWatchlist.value) return
+  
+  addingToWatchlist.value = true
+  try {
+    await api.addToWatchlist(ticker.value.toUpperCase())
+    isInWatchlist.value = true
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error.value = err.message
+    } else {
+      error.value = 'Erro ao adicionar à watchlist'
+    }
+  } finally {
+    addingToWatchlist.value = false
+  }
+}
+
+async function removeFromWatchlist() {
+  if (!ticker.value.trim() || !isInWatchlist.value) return
+  
+  removingFromWatchlist.value = true
+  try {
+    await api.removeFromWatchlist(ticker.value.toUpperCase())
+    isInWatchlist.value = false
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error.value = err.message
+    } else {
+      error.value = 'Erro ao remover da watchlist'
+    }
+  } finally {
+    removingFromWatchlist.value = false
+  }
+}
 
 async function searchTicker() {
   if (!ticker.value.trim()) {
@@ -59,6 +112,7 @@ async function searchTicker() {
 
     technicalData.value = techAnalysis
     fundamentals.value = fundData
+    await checkWatchlist()
   } catch (err) {
     if (err instanceof ApiError) {
       error.value = err.message
@@ -115,6 +169,8 @@ onMounted(async () => {
   if (tickerParam) {
     ticker.value = tickerParam.toUpperCase()
     await searchTicker()
+  } else {
+    await checkWatchlist()
   }
 })
 </script>
@@ -179,8 +235,34 @@ onMounted(async () => {
 
         <div v-if="activeTab === 'technical' && technicalData" class="technical-tab">
           <div class="ticker-header">
-            <h3>{{ technicalData.ticker }}</h3>
-            <span class="period-badge">{{ periodOptions.find(p => p.value === technicalData?.period)?.label || period }}</span>
+            <div class="ticker-title-group">
+              <h3>{{ technicalData.ticker }}</h3>
+              <span class="period-badge">{{ periodOptions.find(p => p.value === technicalData?.period)?.label || period }}</span>
+            </div>
+            <div class="ticker-actions">
+              <button 
+                v-if="!isInWatchlist"
+                @click="addToWatchlist" 
+                class="watchlist-btn"
+                :disabled="addingToWatchlist"
+                title="Adicionar à Watchlist"
+              >
+                <Plus v-if="!addingToWatchlist" :size="18" />
+                <Loader2 v-else :size="18" class="spinner" />
+                <span>{{ addingToWatchlist ? 'Adicionando...' : 'Adicionar à Watchlist' }}</span>
+              </button>
+              <button 
+                v-else
+                @click="removeFromWatchlist" 
+                class="watchlist-btn remove"
+                :disabled="removingFromWatchlist"
+                title="Remover da Watchlist"
+              >
+                <X v-if="!removingFromWatchlist" :size="18" />
+                <Loader2 v-else :size="18" class="spinner" />
+                <span>{{ removingFromWatchlist ? 'Removendo...' : 'Remover da Watchlist' }}</span>
+              </button>
+            </div>
           </div>
 
           <!-- Gráfico de Preço -->

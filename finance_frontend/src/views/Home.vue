@@ -2,8 +2,8 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { api, portfolioApi, type PortfolioSummary, type WatchlistResponse, type AlertListResponse } from '../services/api/index'
-import { DollarSign, TrendingDown, TrendingUp, AlertCircle, Loader2, BarChart, Eye, Bell } from 'lucide-vue-next'
+import { api, portfolioApi, type PortfolioSummary, type WatchlistResponse, type AlertListResponse, type MostSearchedTicker } from '../services/api/index'
+import { DollarSign, TrendingDown, TrendingUp, AlertCircle, Loader2, BarChart, Eye, Bell, Search } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import {
@@ -33,6 +33,7 @@ const authStore = useAuthStore()
 const portfolio = ref<PortfolioSummary | null>(null)
 const watchlist = ref<WatchlistResponse | null>(null)
 const alerts = ref<AlertListResponse | null>(null)
+const mostSearchedTickers = ref<MostSearchedTicker[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -314,20 +315,26 @@ async function loadData() {
       }
     }
     
-    const [watchlistData, alertsData] = await Promise.all([
+    const [watchlistData, alertsData, mostSearchedData] = await Promise.all([
       api.getWatchlist().catch(() => null),
-      api.getAlerts().catch(() => null)
+      api.getAlerts().catch(() => null),
+      api.getMostSearchedTickers(10, 7).catch(() => [])
     ])
     
     portfolio.value = portfolioData
     watchlist.value = watchlistData
     alerts.value = alertsData
+    mostSearchedTickers.value = mostSearchedData || []
   } catch (err) {
     error.value = 'Erro ao carregar dados. Tente novamente.'
     console.error(err)
   } finally {
     loading.value = false
   }
+}
+
+function goToTickerAnalysis(ticker: string) {
+  router.push(`/market-analysis?ticker=${ticker}`)
 }
 
 onMounted(async () => {
@@ -553,6 +560,32 @@ onMounted(async () => {
             </div>
             <div v-if="alerts && alerts.alerts.length > 5" class="card-footer">
               <p>{{ alerts.alerts.length - 5 }} mais alertas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tickers Mais Pesquisados -->
+        <div class="content-card most-searched-section">
+          <div class="card-header">
+            <Search :size="24" />
+            <h3>Tickers Mais Pesquisados</h3>
+          </div>
+          <div v-if="mostSearchedTickers.length === 0" class="empty-state">
+            <p>Nenhum ticker pesquisado ainda.</p>
+            <p class="empty-hint">Os tickers mais pesquisados aparecerão aqui!</p>
+          </div>
+          <div v-else class="most-searched-list">
+            <div 
+              v-for="(item, index) in mostSearchedTickers" 
+              :key="item.ticker" 
+              class="most-searched-item"
+              @click="goToTickerAnalysis(item.ticker)"
+            >
+              <div class="most-searched-rank">{{ index + 1 }}</div>
+              <div class="most-searched-info">
+                <span class="most-searched-ticker">{{ item.ticker }}</span>
+                <span class="most-searched-count">{{ item.search_count }} {{ item.search_count === 1 ? 'pesquisa' : 'pesquisas' }}</span>
+              </div>
             </div>
           </div>
         </div>

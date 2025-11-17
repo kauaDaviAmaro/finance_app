@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { getScannerResults } from '../services/api/scanner.api'
 import { api } from '../services/api/index'
 import type { ScannerRow, ScannerSort } from '../services/api/types'
-import { Crown, Search, Plus, Loader2, Clock, Settings, Zap } from 'lucide-vue-next'
+import { Crown, Search, Plus, Loader2, Clock, Settings, Zap, Eye, X, BarChart } from 'lucide-vue-next'
 import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
@@ -19,6 +19,8 @@ const results = ref<ScannerRow[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const addingToWatchlist = ref<string | null>(null)
+const removingFromWatchlist = ref<string | null>(null)
+const watchlistTickers = ref<Set<string>>(new Set())
 const advancedMode = ref(false)
 
 // Modo Simples
@@ -76,7 +78,10 @@ async function fetchResults() {
   loading.value = true
   error.value = null
   try {
-    const data = await getScannerResults(buildParams())
+    const [data] = await Promise.all([
+      getScannerResults(buildParams()),
+      loadWatchlist() // Recarregar watchlist para verificar status atualizado
+    ])
     results.value = data
   } catch (e: any) {
     error.value = e?.message || 'Erro ao carregar resultados'
@@ -85,15 +90,53 @@ async function fetchResults() {
   }
 }
 
+async function loadWatchlist() {
+  try {
+    const watchlist = await api.getWatchlist()
+    watchlistTickers.value = new Set(watchlist.items.map(item => item.ticker))
+  } catch (e) {
+    // Silenciosamente falha se não conseguir carregar watchlist
+    console.error('Erro ao carregar watchlist:', e)
+  }
+}
+
 async function addToWatchlist(ticker: string) {
+  if (watchlistTickers.value.has(ticker)) {
+    return // Já está na watchlist
+  }
+  
   addingToWatchlist.value = ticker
   error.value = null
   try {
     await api.addToWatchlist(ticker)
+    watchlistTickers.value.add(ticker)
+    // Mostrar feedback de sucesso
+    setTimeout(() => {
+      addingToWatchlist.value = null
+    }, 1000)
   } catch (e: any) {
     error.value = e?.message || 'Erro ao adicionar à watchlist'
-  } finally {
     addingToWatchlist.value = null
+  }
+}
+
+async function removeFromWatchlist(ticker: string) {
+  if (!watchlistTickers.value.has(ticker)) {
+    return // Não está na watchlist
+  }
+  
+  removingFromWatchlist.value = ticker
+  error.value = null
+  try {
+    await api.removeFromWatchlist(ticker)
+    watchlistTickers.value.delete(ticker)
+    // Mostrar feedback de sucesso
+    setTimeout(() => {
+      removingFromWatchlist.value = null
+    }, 1000)
+  } catch (e: any) {
+    error.value = e?.message || 'Erro ao remover da watchlist'
+    removingFromWatchlist.value = null
   }
 }
 
@@ -114,9 +157,14 @@ function goToSubscription() {
   router.push('/subscription')
 }
 
-onMounted(() => {
+function goToAnalysis(ticker: string) {
+  router.push(`/market-analysis?ticker=${ticker}`)
+}
+
+onMounted(async () => {
   if (isPro.value) {
     // Não carrega automaticamente - usuário precisa buscar
+    await loadWatchlist()
   }
 })
 </script>
@@ -332,8 +380,6 @@ onMounted(() => {
                   <th>Preço Atual</th>
                   <th>RSI (14)</th>
                   <th>MACD Hist.</th>
-                  <th>BB Lower</th>
-                  <th>BB Upper</th>
                   <th>Ação</th>
                 </tr>
               </thead>
@@ -349,18 +395,39 @@ onMounted(() => {
                   <td :class="{ 'macd-pos': row.macd_h && row.macd_h > 0 }">
                     {{ formatNum(row.macd_h) }}
                   </td>
-                  <td>{{ formatCurrency(row.bb_lower) }}</td>
-                  <td>{{ formatCurrency(row.bb_upper) }}</td>
                   <td>
-                    <button 
-                      @click="addToWatchlist(row.ticker)" 
-                      class="add-btn"
-                      :disabled="addingToWatchlist === row.ticker"
-                    >
-                      <Plus v-if="addingToWatchlist !== row.ticker" :size="16" />
-                      <Loader2 v-else :size="16" class="spin" />
-                      <span>Adicionar</span>
-                    </button>
+                    <div class="action-buttons">
+                      <button 
+                        @click="goToAnalysis(row.ticker)" 
+                        class="analysis-btn"
+                        title="Ver Análise"
+                      >
+                        <BarChart :size="16" />
+                        <span>Ver Análise</span>
+                      </button>
+                      <button 
+                        v-if="!watchlistTickers.has(row.ticker)"
+                        @click="addToWatchlist(row.ticker)" 
+                        class="add-btn"
+                        :disabled="addingToWatchlist === row.ticker"
+                        title="Adicionar à Watchlist"
+                      >
+                        <Plus v-if="addingToWatchlist !== row.ticker" :size="16" />
+                        <Loader2 v-else :size="16" class="spin" />
+                        <span>{{ addingToWatchlist === row.ticker ? 'Adicionando...' : 'Adicionar à Watchlist' }}</span>
+                      </button>
+                      <button 
+                        v-else
+                        @click="removeFromWatchlist(row.ticker)" 
+                        class="remove-btn"
+                        :disabled="removingFromWatchlist === row.ticker"
+                        title="Remover da Watchlist"
+                      >
+                        <Eye v-if="removingFromWatchlist !== row.ticker" :size="16" />
+                        <Loader2 v-else :size="16" class="spin" />
+                        <span>{{ removingFromWatchlist === row.ticker ? 'Removendo...' : 'Remover da Watchlist' }}</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>

@@ -34,6 +34,8 @@ export const api = {
   getHistoricalData: stocksApi.getHistoricalData,
   getTechnicalAnalysis: stocksApi.getTechnicalAnalysis,
   getFundamentals: stocksApi.getFundamentals,
+  getMostSearchedTickers: stocksApi.getMostSearchedTickers,
+  compareTickers: stocksApi.compareTickers,
   
   // Portfolio methods
   getPortfolio: portfolioApi.getPortfolio,

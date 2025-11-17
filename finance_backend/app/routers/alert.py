@@ -8,7 +8,7 @@ from app.core.security import get_current_user
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 # Validações de tipos de indicadores e condições permitidas
-VALID_INDICATORS = ["MACD", "RSI", "STOCHASTIC", "BBANDS"]
+VALID_INDICATORS = ["MACD", "RSI", "STOCHASTIC", "BBANDS", "PRICE"]
 VALID_CONDITIONS = ["CROSS_ABOVE", "CROSS_BELOW", "GREATER_THAN", "LESS_THAN"]
 
 
@@ -29,10 +29,18 @@ def validate_alert_data(indicator_type: str, condition: str, threshold_value: fl
         )
     
     # Para condições GREATER_THAN e LESS_THAN, threshold_value é obrigatório
+    # Para PRICE, threshold_value é sempre obrigatório
     if condition.upper() in ["GREATER_THAN", "LESS_THAN"] and threshold_value is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"threshold_value é obrigatório para a condição {condition}"
+        )
+    
+    # Para alertas de preço, threshold_value é sempre obrigatório
+    if indicator_type.upper() == "PRICE" and threshold_value is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="threshold_value é obrigatório para alertas de preço"
         )
 
 

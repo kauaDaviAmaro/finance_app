@@ -52,3 +52,17 @@ class FundamentalsOut(BaseModel):
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+
+class TickerComparisonRequest(BaseModel):
+    ticker1: str = Field(..., min_length=1, description="Primeiro ticker para comparação")
+    ticker2: str = Field(..., min_length=1, description="Segundo ticker para comparação")
+    period: str = Field("1y", description="Período dos dados (ex: 1y, 3mo, 5d, max)")
+
+class TickerComparisonOut(BaseModel):
+    ticker1: str
+    ticker2: str
+    period: str
+    ticker1_data: TechnicalAnalysisOut
+    ticker2_data: TechnicalAnalysisOut
+    ticker1_fundamentals: FundamentalsOut
+    ticker2_fundamentals: FundamentalsOut

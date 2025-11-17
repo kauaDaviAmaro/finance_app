@@ -799,3 +799,27 @@ export async function deleteSupportMessage(id: number): Promise<void> {
   }
 }
 
+// ============================================================================
+// SCANNER
+// ============================================================================
+
+export interface ScanStartResponse {
+  message: string
+  task_id?: string | null
+  status: string
+}
+
+export async function startScanner(asyncMode: boolean = true): Promise<ScanStartResponse> {
+  try {
+    const response = await apiClient.post<ScanStartResponse>('/admin/scanner/start', null, {
+      params: { async_mode: asyncMode }
+    })
+    return response.data
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error
+    }
+    throw new ApiError(0, 'Erro ao iniciar scanner')
+  }
+}
+

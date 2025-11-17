@@ -25,6 +25,7 @@ const newAlert = ref<AlertCreate>({
 })
 
 const indicatorOptions = [
+  { value: 'PRICE', label: 'Preço' },
   { value: 'MACD', label: 'MACD' },
   { value: 'RSI', label: 'RSI' },
   { value: 'STOCHASTIC', label: 'Stochastic' },
@@ -39,6 +40,10 @@ const conditionOptions = [
 ]
 
 const needsThreshold = computed(() => {
+  // Para alertas de preço, sempre precisa de threshold
+  if (newAlert.value.indicator_type === 'PRICE') {
+    return true
+  }
   return ['GREATER_THAN', 'LESS_THAN'].includes(newAlert.value.condition)
 })
 
@@ -204,6 +209,7 @@ function formatCondition(condition: string): string {
 
 function formatIndicator(indicator: string): string {
   const mapping: Record<string, string> = {
+    PRICE: 'Preço',
     MACD: 'MACD',
     RSI: 'RSI',
     STOCHASTIC: 'Stochastic',
@@ -324,13 +330,15 @@ onMounted(async () => {
             </div>
 
             <div v-if="needsThreshold" class="input-group">
-              <label for="threshold">Valor Limite</label>
+              <label for="threshold">
+                {{ newAlert.indicator_type === 'PRICE' ? 'Preço Alvo (R$)' : 'Valor Limite' }}
+              </label>
               <input
                 id="threshold"
                 v-model.number="newAlert.threshold_value"
                 type="number"
-                step="0.01"
-                placeholder="Ex: 70.0"
+                :step="newAlert.indicator_type === 'PRICE' ? '0.01' : '0.01'"
+                :placeholder="newAlert.indicator_type === 'PRICE' ? 'Ex: 25.50' : 'Ex: 70.0'"
                 :disabled="creating"
               />
             </div>

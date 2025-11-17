@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAdminStats, type AdminStats } from '../../services/api/admin.api'
-import { Users, Bell, Briefcase, Eye, TrendingUp, BarChart3, Activity } from 'lucide-vue-next'
+import { getAdminStats, startScanner, type AdminStats } from '../../services/api/admin.api'
+import { Users, Bell, Briefcase, Eye, TrendingUp, BarChart3, Activity, Play, MessageCircle } from 'lucide-vue-next'
 
 const stats = ref<AdminStats | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+const scannerLoading = ref(false)
+const scannerMessage = ref<string | null>(null)
+const scannerError = ref<string | null>(null)
 
 async function loadStats() {
   try {
@@ -16,6 +20,31 @@ async function loadStats() {
     error.value = err.message || 'Erro ao carregar estatísticas'
   } finally {
     loading.value = false
+  }
+}
+
+async function handleStartScanner() {
+  try {
+    scannerLoading.value = true
+    scannerError.value = null
+    scannerMessage.value = null
+    
+    const response = await startScanner(true)
+    scannerMessage.value = response.message
+    
+    // Limpar mensagem após 10 segundos
+    setTimeout(() => {
+      scannerMessage.value = null
+    }, 10000)
+  } catch (err: any) {
+    scannerError.value = err.message || 'Erro ao iniciar scanner'
+    
+    // Limpar erro após 10 segundos
+    setTimeout(() => {
+      scannerError.value = null
+    }, 10000)
+  } finally {
+    scannerLoading.value = false
   }
 }
 
@@ -41,6 +70,38 @@ onMounted(() => {
     </div>
 
     <div v-else-if="stats" class="dashboard-content">
+      <!-- Scanner Control Section -->
+      <div class="scanner-control-card">
+        <div class="scanner-control-header">
+          <div>
+            <h2 class="scanner-control-title">Scanner de Mercado</h2>
+            <p class="scanner-control-description">
+              Inicie um scan completo do mercado B3 para atualizar os dados de todos os tickers e indicadores técnicos.
+              O processo pode levar 10-30 minutos.
+            </p>
+          </div>
+          <button 
+            @click="handleStartScanner" 
+            :disabled="scannerLoading"
+            class="scanner-button"
+            :class="{ loading: scannerLoading }"
+          >
+            <Play :size="20" v-if="!scannerLoading" />
+            <div v-else class="button-spinner"></div>
+            {{ scannerLoading ? 'Iniciando...' : 'Iniciar Scanner' }}
+          </button>
+        </div>
+        
+        <div v-if="scannerMessage" class="scanner-message success">
+          <Activity :size="16" />
+          <span>{{ scannerMessage }}</span>
+        </div>
+        
+        <div v-if="scannerError" class="scanner-message error">
+          <span>{{ scannerError }}</span>
+        </div>
+      </div>
+
       <!-- Stats Cards -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -108,6 +169,19 @@ onMounted(() => {
           <div class="stat-content">
             <h3 class="stat-value">{{ stats.total_scan_results }}</h3>
             <p class="stat-label">Scan Results</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon support">
+            <MessageCircle :size="24" />
+          </div>
+          <div class="stat-content">
+            <h3 class="stat-value">{{ stats.total_support_messages }}</h3>
+            <p class="stat-label">Mensagens de Suporte</p>
+            <div class="stat-details">
+              <span class="detail-item pending">{{ stats.pending_support_messages }} pendentes</span>
+            </div>
           </div>
         </div>
       </div>
@@ -272,6 +346,11 @@ onMounted(() => {
   color: white;
 }
 
+.stat-icon.support {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
 .stat-content {
   flex: 1;
 }
@@ -302,6 +381,12 @@ onMounted(() => {
   padding: 4px 8px;
   background: #f1f5f9;
   border-radius: 4px;
+}
+
+.detail-item.pending {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
 }
 
 .charts-grid {
@@ -366,6 +451,105 @@ onMounted(() => {
   color: #64748b;
 }
 
+.scanner-control-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 32px;
+  border: 2px solid #e2e8f0;
+}
+
+.scanner-control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.scanner-control-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.scanner-control-description {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.scanner-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.scanner-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.scanner-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scanner-button.loading {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scanner-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.scanner-message.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.scanner-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
@@ -373,6 +557,16 @@ onMounted(() => {
 
   .charts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .scanner-control-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .scanner-button {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

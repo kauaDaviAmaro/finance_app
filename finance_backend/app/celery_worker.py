@@ -4,8 +4,8 @@ from app.core.config import settings
 from app.db.database import SessionLocal, engine
 from app.core.market_service import get_all_tracked_tickers, update_ticker_prices, check_and_trigger_alerts
 from app.core.market.ticker_utils import get_all_b3_tickers
-from app.core.market.technical_analysis import get_scanner_indicators
-from app.db.models import Base, ScannerData
+from app.core.market.technical_analysis import get_all_scanner_indicators
+from app.db.models import Base, ScannerData, DailyScanResult
 import logging
 import time
 
@@ -145,13 +145,6 @@ def check_alerts_task(self):
         db.close()
 
 
-@celery_app.task(
-    name='app.celery_worker.run_full_market_scan',
-    bind=True,
-    rate_limit='1/h',  # Máximo 1 execução por hora (já é controlada pelo beat schedule)
-    max_retries=2,
-    default_retry_delay=3600  # 1 hora em caso de retry
-)
 def _run_full_market_scan_logic():
     """
     Lógica principal do scan completo do mercado B3.
@@ -180,29 +173,68 @@ def _run_full_market_scan_logic():
         
         for idx, ticker in enumerate(all_tickers, 1):
             try:
-                # Calcular indicadores técnicos
-                indicators = get_scanner_indicators(ticker)
+                # Calcular TODOS os indicadores em uma única chamada (otimização)
+                all_indicators = get_all_scanner_indicators(ticker)
                 
-                # Fazer UPSERT na tabela scanner_data
-                scanner_data = db.query(ScannerData).filter(ScannerData.ticker == ticker).first()
+                # Verificar se temos dados válidos antes de fazer operações no banco
+                has_scanner_data = any([
+                    all_indicators.get('rsi_14') is not None,
+                    all_indicators.get('macd_signal') is not None,
+                    all_indicators.get('mm_9_cruza_mm_21') != 'NEUTRAL'
+                ])
                 
-                if scanner_data:
-                    # UPDATE
-                    scanner_data.rsi_14 = indicators['rsi_14']
-                    scanner_data.macd_signal = indicators['macd_signal']
-                    scanner_data.mm_9_cruza_mm_21 = indicators['mm_9_cruza_mm_21']
-                    # last_updated é atualizado automaticamente pelo onupdate
+                has_daily_data = all_indicators.get('last_price') is not None
+                
+                # Atualizar ScannerData apenas se tivermos dados válidos
+                if has_scanner_data:
+                    scanner_data = db.query(ScannerData).filter(ScannerData.ticker == ticker).first()
+                    
+                    if scanner_data:
+                        # UPDATE
+                        scanner_data.rsi_14 = all_indicators['rsi_14']
+                        scanner_data.macd_signal = all_indicators['macd_signal']
+                        scanner_data.mm_9_cruza_mm_21 = all_indicators['mm_9_cruza_mm_21']
+                        # last_updated é atualizado automaticamente pelo onupdate
+                    else:
+                        # INSERT
+                        scanner_data = ScannerData(
+                            ticker=ticker,
+                            rsi_14=all_indicators['rsi_14'],
+                            macd_signal=all_indicators['macd_signal'],
+                            mm_9_cruza_mm_21=all_indicators['mm_9_cruza_mm_21']
+                        )
+                        db.add(scanner_data)
+                
+                # Atualizar DailyScanResult apenas se tivermos dados válidos
+                if has_daily_data:
+                    daily_scan = db.query(DailyScanResult).filter(DailyScanResult.ticker == ticker).first()
+                    
+                    if daily_scan:
+                        # UPDATE
+                        daily_scan.last_price = all_indicators['last_price']
+                        daily_scan.rsi_14 = all_indicators['rsi_14']
+                        daily_scan.macd_h = all_indicators['macd_h']
+                        daily_scan.bb_upper = all_indicators['bb_upper']
+                        daily_scan.bb_lower = all_indicators['bb_lower']
+                        # timestamp é atualizado automaticamente
+                    else:
+                        # INSERT
+                        daily_scan = DailyScanResult(
+                            ticker=ticker,
+                            last_price=all_indicators['last_price'],
+                            rsi_14=all_indicators['rsi_14'],
+                            macd_h=all_indicators['macd_h'],
+                            bb_upper=all_indicators['bb_upper'],
+                            bb_lower=all_indicators['bb_lower']
+                        )
+                        db.add(daily_scan)
+                
+                # Contar como sucesso apenas se tivermos pelo menos alguns dados
+                if has_scanner_data or has_daily_data:
+                    success_count += 1
                 else:
-                    # INSERT
-                    scanner_data = ScannerData(
-                        ticker=ticker,
-                        rsi_14=indicators['rsi_14'],
-                        macd_signal=indicators['macd_signal'],
-                        mm_9_cruza_mm_21=indicators['mm_9_cruza_mm_21']
-                    )
-                    db.add(scanner_data)
-                
-                success_count += 1
+                    error_count += 1
+                    logger.debug(f"Ticker {ticker}: sem dados disponíveis (possivelmente delistado)")
                 
                 # Log de progresso a cada 50 tickers
                 if idx % 50 == 0:
@@ -237,6 +269,13 @@ def _run_full_market_scan_logic():
         db.close()
 
 
+@celery_app.task(
+    name='app.celery_worker.run_full_market_scan',
+    bind=True,
+    rate_limit='1/h',  # Máximo 1 execução por hora (já é controlada pelo beat schedule)
+    max_retries=2,
+    default_retry_delay=3600  # 1 hora em caso de retry
+)
 def run_full_market_scan(self):
     """
     Tarefa agendada para fazer scan completo do mercado B3.

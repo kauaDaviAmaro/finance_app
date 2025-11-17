@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationsStore } from '../stores/notifications'
 import type { Notification } from '../services/api/notifications.api'
-import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign, Crown, HelpCircle, ChevronDown, CheckCircle, Trash2, AlertCircle, MessageSquare, CreditCard, Settings } from 'lucide-vue-next'
+import { Coins, BarChart, Eye, Bell, TrendingUp, LogOut, User, Menu, X, DollarSign, Crown, HelpCircle, ChevronDown, CheckCircle, Trash2, AlertCircle, MessageSquare, CreditCard, Settings, GitCompare } from 'lucide-vue-next'
 import { changeMyRole } from '../services/api/admin.api'
 
 const router = useRouter()
@@ -22,7 +22,7 @@ let notificationsInterval: ReturnType<typeof setInterval> | null = null
 const isGroupActive = (groupName: string) => {
   const groups: Record<string, string[]> = {
     investimentos: ['/home', '/portfolio', '/watchlist'],
-    analise: ['/market-analysis', '/scanner'],
+    analise: ['/market-analysis', '/compare', '/scanner'],
     alertas: ['/alerts'],
     ajuda: ['/support']
   }
@@ -287,6 +287,10 @@ onUnmounted(() => {
                 <TrendingUp :size="16" />
                 <span>Análise de Mercado</span>
           </router-link>
+              <router-link to="/compare" class="dropdown-item" @click="closeMenus">
+                <GitCompare :size="16" />
+                <span>Comparar Tickers</span>
+          </router-link>
               <router-link v-if="isPro" to="/scanner" class="dropdown-item" @click="closeMenus">
                 <Crown :size="16" />
             <span>Scanner (PRO)</span>
@@ -520,6 +524,10 @@ onUnmounted(() => {
         <router-link to="/market-analysis" class="mobile-nav-link" aria-label="Análise de Mercado">
           <TrendingUp :size="20" />
           <span>Análise</span>
+        </router-link>
+        <router-link to="/compare" class="mobile-nav-link" aria-label="Comparar Tickers">
+          <GitCompare :size="20" />
+          <span>Comparar</span>
         </router-link>
         <router-link to="/scanner" class="mobile-nav-link" aria-label="Scanner (PRO)">
           <Crown :size="20" />

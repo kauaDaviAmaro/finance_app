@@ -1,23 +1,44 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.schemas.stock import (
-    TickerRequest, TickerHistoricalDataOut, TechnicalAnalysisOut, FundamentalsOut
+    TickerRequest, TickerHistoricalDataOut, TechnicalAnalysisOut, FundamentalsOut,
+    TickerComparisonRequest, TickerComparisonOut
 )
 from app.core.market_service import (
     get_historical_data, get_technical_analysis, get_company_fundamentals
 )
 from app.core.security import get_current_user, get_pro_user
-from app.db.models import User, DailyScanResult
+from app.db.models import User, DailyScanResult, TickerSearch
 from app.db.database import get_db
+from app.core.market.ticker_utils import format_ticker
 from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
 from typing import Optional, Literal, List
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/stocks", tags=["Stocks Analysis"])
+
+
+def log_ticker_search(ticker: str, user_id: Optional[int], db: Session):
+    """Registra uma pesquisa de ticker no banco de dados."""
+    try:
+        formatted_ticker = format_ticker(ticker)
+        search = TickerSearch(
+            ticker=formatted_ticker,
+            user_id=user_id
+        )
+        db.add(search)
+        db.commit()
+    except Exception:
+        # Não queremos que erros no log quebrem a requisição
+        db.rollback()
+        pass
 
 
 @router.post("/historical-data", response_model=TickerHistoricalDataOut)
 def fetch_historical_data(
     payload: TickerRequest,
-    current_user: User = Depends(get_current_user) 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Busca dados históricos de um ativo na bolsa.
@@ -30,6 +51,9 @@ def fetch_historical_data(
                 status_code=404,
                 detail=f"Nenhum dado encontrado para o ticker: {payload.ticker}"
             )
+
+        # Registrar pesquisa
+        log_ticker_search(payload.ticker, current_user.id, db)
 
         return TickerHistoricalDataOut(
             ticker=payload.ticker,
@@ -47,7 +71,8 @@ def fetch_historical_data(
 @router.post("/analysis", response_model=TechnicalAnalysisOut)
 def fetch_technical_analysis(
     payload: TickerRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Busca dados históricos de um ativo com indicadores técnicos calculados:
@@ -61,6 +86,9 @@ def fetch_technical_analysis(
                 status_code=404,
                 detail=f"Nenhum dado encontrado para o ticker: {payload.ticker}"
             )
+        
+        # Registrar pesquisa
+        log_ticker_search(payload.ticker, current_user.id, db)
         
         # Mapear colunas do pandas-ta para o schema
         formatted_data = []
@@ -104,7 +132,8 @@ def fetch_technical_analysis(
 @router.get("/fundamentals/{ticker}", response_model=FundamentalsOut)
 def fetch_fundamentals(
     ticker: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Busca dados fundamentalistas de uma empresa:
@@ -112,6 +141,9 @@ def fetch_fundamentals(
     """
     try:
         fundamentals = get_company_fundamentals(ticker)
+        
+        # Registrar pesquisa
+        log_ticker_search(ticker, current_user.id, db)
         
         return FundamentalsOut(
             ticker=ticker,
@@ -123,6 +155,46 @@ def fetch_fundamentals(
         raise HTTPException(
             status_code=500,
             detail=f"Erro no servidor ao buscar fundamentos: {e}"
+        )
+
+
+@router.get("/most-searched")
+def get_most_searched_tickers(
+    limit: int = Query(default=10, ge=1, le=50),
+    days: int = Query(default=7, ge=1, le=30),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna os tickers mais pesquisados nos últimos N dias.
+    """
+    try:
+        # Calcular data de corte
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Buscar tickers mais pesquisados
+        results = db.query(
+            TickerSearch.ticker,
+            func.count(TickerSearch.id).label('search_count')
+        ).filter(
+            TickerSearch.created_at >= cutoff_date
+        ).group_by(
+            TickerSearch.ticker
+        ).order_by(
+            desc(func.count(TickerSearch.id))
+        ).limit(limit).all()
+        
+        return [
+            {
+                "ticker": ticker,
+                "search_count": count
+            }
+            for ticker, count in results
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no servidor ao buscar tickers mais pesquisados: {e}"
         )
 
 
@@ -180,6 +252,9 @@ def get_scanner_results(
             query = query.order_by(DailyScanResult.rsi_14.desc().nulls_last())
         elif sort == 'macd_desc':
             query = query.order_by(DailyScanResult.macd_h.desc().nulls_last())
+        else:
+            # Ordenação padrão: por ticker
+            query = query.order_by(DailyScanResult.ticker.asc())
 
         results: List[DailyScanResult] = query.limit(limit).all()
 
@@ -191,7 +266,7 @@ def get_scanner_results(
                 "macd_h": float(r.macd_h) if r.macd_h is not None else None,
                 "bb_upper": float(r.bb_upper) if r.bb_upper is not None else None,
                 "bb_lower": float(r.bb_lower) if r.bb_lower is not None else None,
-                "timestamp": r.timestamp,
+                "timestamp": r.timestamp.isoformat() if r.timestamp else None,
             }
             for r in results
         ]
@@ -201,4 +276,119 @@ def get_scanner_results(
         raise HTTPException(
             status_code=500,
             detail=f"Erro no servidor ao consultar scanner: {e}"
+        )
+
+
+@router.post("/compare", response_model=TickerComparisonOut)
+def compare_tickers(
+    payload: TickerComparisonRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Compara dois tickers retornando análise técnica e fundamentos de ambos.
+    """
+    try:
+        # Buscar análise técnica para ambos os tickers
+        ticker1_technical = get_technical_analysis(payload.ticker1, payload.period)
+        ticker2_technical = get_technical_analysis(payload.ticker2, payload.period)
+        
+        if not ticker1_technical:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nenhum dado encontrado para o ticker: {payload.ticker1}"
+            )
+        
+        if not ticker2_technical:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nenhum dado encontrado para o ticker: {payload.ticker2}"
+            )
+        
+        # Buscar fundamentos para ambos os tickers
+        ticker1_fundamentals = get_company_fundamentals(payload.ticker1)
+        ticker2_fundamentals = get_company_fundamentals(payload.ticker2)
+        
+        # Registrar pesquisas
+        log_ticker_search(payload.ticker1, current_user.id, db)
+        log_ticker_search(payload.ticker2, current_user.id, db)
+        
+        # Formatar dados técnicos do ticker1
+        ticker1_formatted_data = []
+        for row in ticker1_technical:
+            formatted_row = {
+                'date': row['date'],
+                'open': row['open'],
+                'high': row['high'],
+                'low': row['low'],
+                'close': row['close'],
+                'volume': row['volume'],
+                'macd': row.get('MACD_12_26_9'),
+                'macd_signal': row.get('MACDs_12_26_9'),
+                'macd_histogram': row.get('MACDh_12_26_9'),
+                'stochastic_k': row.get('STOCHk_14_3_3'),
+                'stochastic_d': row.get('STOCHd_14_3_3'),
+                'atr': row.get('ATRr_14'),
+                'bb_lower': row.get('BBL_20_2.0'),
+                'bb_middle': row.get('BBM_20_2.0'),
+                'bb_upper': row.get('BBU_20_2.0'),
+                'obv': row.get('OBV'),
+                'rsi': row.get('RSI_14')
+            }
+            ticker1_formatted_data.append(formatted_row)
+        
+        # Formatar dados técnicos do ticker2
+        ticker2_formatted_data = []
+        for row in ticker2_technical:
+            formatted_row = {
+                'date': row['date'],
+                'open': row['open'],
+                'high': row['high'],
+                'low': row['low'],
+                'close': row['close'],
+                'volume': row['volume'],
+                'macd': row.get('MACD_12_26_9'),
+                'macd_signal': row.get('MACDs_12_26_9'),
+                'macd_histogram': row.get('MACDh_12_26_9'),
+                'stochastic_k': row.get('STOCHk_14_3_3'),
+                'stochastic_d': row.get('STOCHd_14_3_3'),
+                'atr': row.get('ATRr_14'),
+                'bb_lower': row.get('BBL_20_2.0'),
+                'bb_middle': row.get('BBM_20_2.0'),
+                'bb_upper': row.get('BBU_20_2.0'),
+                'obv': row.get('OBV'),
+                'rsi': row.get('RSI_14')
+            }
+            ticker2_formatted_data.append(formatted_row)
+        
+        return TickerComparisonOut(
+            ticker1=payload.ticker1,
+            ticker2=payload.ticker2,
+            period=payload.period,
+            ticker1_data=TechnicalAnalysisOut(
+                ticker=payload.ticker1,
+                period=payload.period,
+                data=ticker1_formatted_data
+            ),
+            ticker2_data=TechnicalAnalysisOut(
+                ticker=payload.ticker2,
+                period=payload.period,
+                data=ticker2_formatted_data
+            ),
+            ticker1_fundamentals=FundamentalsOut(
+                ticker=payload.ticker1,
+                **ticker1_fundamentals
+            ),
+            ticker2_fundamentals=FundamentalsOut(
+                ticker=payload.ticker2,
+                **ticker2_fundamentals
+            )
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no servidor ao comparar tickers: {e}"
         )

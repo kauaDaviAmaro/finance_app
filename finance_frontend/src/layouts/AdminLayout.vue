@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { 
   LayoutDashboard, Users, Bell, Briefcase, Eye, 
-  TrendingUp, BarChart3, LogOut, ArrowLeft, Menu, X 
+  TrendingUp, BarChart3, LogOut, ArrowLeft, Menu, X, MessageCircle 
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -23,6 +23,7 @@ const menuItems = [
   { name: 'Watchlist', path: '/admin/watchlist', icon: Eye },
   { name: 'Ticker Prices', path: '/admin/ticker-prices', icon: TrendingUp },
   { name: 'Scan Results', path: '/admin/scan-results', icon: BarChart3 },
+  { name: 'Suporte', path: '/admin/support', icon: MessageCircle },
 ]
 
 function handleLogout() {

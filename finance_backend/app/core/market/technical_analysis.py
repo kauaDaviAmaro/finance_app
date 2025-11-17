@@ -275,3 +275,237 @@ def get_scanner_indicators(ticker: str, period: str = "1y") -> dict:
             'mm_9_cruza_mm_21': 'NEUTRAL'
         }
 
+
+def get_all_scanner_indicators(ticker: str, period: str = "1y") -> dict:
+    """
+    Calcula TODOS os indicadores técnicos necessários para ambos ScannerData e DailyScanResult
+    em uma única chamada ao yfinance (otimização para evitar chamadas duplicadas).
+    
+    Args:
+        ticker: Ticker da ação (ex: 'PETR4')
+        period: Período de dados históricos (padrão: '1y')
+    
+    Returns:
+        Dicionário com todos os indicadores:
+        - last_price: Último preço de fechamento
+        - rsi_14: Valor do RSI(14) mais recente
+        - macd_signal: Valor do MACD signal mais recente
+        - macd_h: Valor do MACD histogram mais recente
+        - mm_9_cruza_mm_21: 'BULLISH', 'BEARISH' ou 'NEUTRAL'
+        - bb_upper: Banda superior de Bollinger
+        - bb_lower: Banda inferior de Bollinger
+    """
+    formatted_ticker = format_ticker(ticker)
+    
+    try:
+        stock = yf.Ticker(formatted_ticker)
+        data: pd.DataFrame = stock.history(period=period)
+        
+        if data.empty:
+            return {
+                'last_price': None,
+                'rsi_14': None,
+                'macd_signal': None,
+                'macd_h': None,
+                'mm_9_cruza_mm_21': 'NEUTRAL',
+                'bb_upper': None,
+                'bb_lower': None
+            }
+        
+        data.reset_index(inplace=True)
+        data.rename(columns={
+            'Date': 'date',
+            'Close': 'close',
+            'Volume': 'volume'
+        }, inplace=True)
+        
+        # Último preço
+        last_price = float(data['close'].iloc[-1]) if not data['close'].empty else None
+        
+        # Calcular RSI (usado por ambos)
+        rsi_14 = None
+        try:
+            rsi = ta.rsi(data['close'], length=14)
+            if rsi is not None and not rsi.empty:
+                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular MACD (obtém signal e histogram de uma vez)
+        macd_signal = None
+        macd_h = None
+        try:
+            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
+            if macd is not None and not macd.empty:
+                if 'MACDs_12_26_9' in macd.columns:
+                    macd_signal = float(macd['MACDs_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDs_12_26_9'].iloc[-1]) else None
+                if 'MACDh_12_26_9' in macd.columns:
+                    macd_h = float(macd['MACDh_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDh_12_26_9'].iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular médias móveis e detectar cruzamento
+        data_with_ma = calculate_moving_averages(data)
+        mm_cross = detect_moving_average_cross(data_with_ma)
+        
+        # Calcular Bollinger Bands (precisa de pelo menos 20 períodos)
+        bb_upper = None
+        bb_lower = None
+        try:
+            if len(data) >= 20:  # Bollinger Bands precisa de pelo menos 20 períodos
+                bbands = ta.bbands(data['close'], length=20, std=2)
+                if bbands is not None and not bbands.empty:
+                    # Verificar se bbands é um DataFrame
+                    if isinstance(bbands, pd.DataFrame):
+                        # Verificar todas as colunas possíveis
+                        for col in bbands.columns:
+                            if 'BBU' in col or 'BBU_20_2.0' in col:
+                                bb_upper_val = bbands[col].iloc[-1]
+                                if not pd.isna(bb_upper_val):
+                                    bb_upper = float(bb_upper_val)
+                                    break
+                        for col in bbands.columns:
+                            if 'BBL' in col or 'BBL_20_2.0' in col:
+                                bb_lower_val = bbands[col].iloc[-1]
+                                if not pd.isna(bb_lower_val):
+                                    bb_lower = float(bb_lower_val)
+                                    break
+                    else:
+                        # Se não for DataFrame, pode ser que retorne um dict ou outra estrutura
+                        print(f"Bollinger Bands retornou tipo inesperado: {type(bbands)} para {formatted_ticker}")
+        except Exception as e:
+            print(f"Erro ao calcular Bollinger Bands para {formatted_ticker}: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return {
+            'last_price': last_price,
+            'rsi_14': rsi_14,
+            'macd_signal': macd_signal,
+            'macd_h': macd_h,
+            'mm_9_cruza_mm_21': mm_cross or 'NEUTRAL',
+            'bb_upper': bb_upper,
+            'bb_lower': bb_lower
+        }
+        
+    except Exception as e:
+        print(f"Erro ao calcular indicadores do scanner para {formatted_ticker}: {e}")
+        return {
+            'last_price': None,
+            'rsi_14': None,
+            'macd_signal': None,
+            'macd_h': None,
+            'mm_9_cruza_mm_21': 'NEUTRAL',
+            'bb_upper': None,
+            'bb_lower': None
+        }
+
+
+def get_daily_scan_indicators(ticker: str, period: str = "1y") -> dict:
+    """
+    Calcula indicadores técnicos necessários para DailyScanResult:
+    RSI_14, MACD histogram, Bollinger Bands, e último preço.
+    
+    Args:
+        ticker: Ticker da ação (ex: 'PETR4')
+        period: Período de dados históricos (padrão: '1y')
+    
+    Returns:
+        Dicionário com:
+        - last_price: Último preço de fechamento
+        - rsi_14: Valor do RSI(14) mais recente
+        - macd_h: Valor do MACD histogram mais recente
+        - bb_upper: Banda superior de Bollinger
+        - bb_lower: Banda inferior de Bollinger
+    """
+    formatted_ticker = format_ticker(ticker)
+    
+    try:
+        stock = yf.Ticker(formatted_ticker)
+        data: pd.DataFrame = stock.history(period=period)
+        
+        if data.empty:
+            return {
+                'last_price': None,
+                'rsi_14': None,
+                'macd_h': None,
+                'bb_upper': None,
+                'bb_lower': None
+            }
+        
+        data.reset_index(inplace=True)
+        data.rename(columns={
+            'Date': 'date',
+            'Close': 'close',
+            'Volume': 'volume'
+        }, inplace=True)
+        
+        # Último preço
+        last_price = float(data['close'].iloc[-1]) if not data['close'].empty else None
+        
+        # Calcular RSI
+        rsi_14 = None
+        try:
+            rsi = ta.rsi(data['close'], length=14)
+            if rsi is not None and not rsi.empty:
+                rsi_14 = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular MACD histogram
+        macd_h = None
+        try:
+            macd = ta.macd(data['close'], fast=12, slow=26, signal=9)
+            if macd is not None and not macd.empty and 'MACDh_12_26_9' in macd.columns:
+                macd_h = float(macd['MACDh_12_26_9'].iloc[-1]) if not pd.isna(macd['MACDh_12_26_9'].iloc[-1]) else None
+        except Exception:
+            pass
+        
+        # Calcular Bollinger Bands (precisa de pelo menos 20 períodos)
+        bb_upper = None
+        bb_lower = None
+        try:
+            if len(data) >= 20:  # Bollinger Bands precisa de pelo menos 20 períodos
+                bbands = ta.bbands(data['close'], length=20, std=2)
+                if bbands is not None and not bbands.empty:
+                    # Verificar se bbands é um DataFrame
+                    if isinstance(bbands, pd.DataFrame):
+                        # Verificar todas as colunas possíveis
+                        for col in bbands.columns:
+                            if 'BBU' in col or 'BBU_20_2.0' in col:
+                                bb_upper_val = bbands[col].iloc[-1]
+                                if not pd.isna(bb_upper_val):
+                                    bb_upper = float(bb_upper_val)
+                                    break
+                        for col in bbands.columns:
+                            if 'BBL' in col or 'BBL_20_2.0' in col:
+                                bb_lower_val = bbands[col].iloc[-1]
+                                if not pd.isna(bb_lower_val):
+                                    bb_lower = float(bb_lower_val)
+                                    break
+                    else:
+                        # Se não for DataFrame, pode ser que retorne um dict ou outra estrutura
+                        print(f"Bollinger Bands retornou tipo inesperado: {type(bbands)} para {formatted_ticker}")
+        except Exception as e:
+            print(f"Erro ao calcular Bollinger Bands para {formatted_ticker}: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return {
+            'last_price': last_price,
+            'rsi_14': rsi_14,
+            'macd_h': macd_h,
+            'bb_upper': bb_upper,
+            'bb_lower': bb_lower
+        }
+        
+    except Exception as e:
+        print(f"Erro ao calcular indicadores do daily scan para {formatted_ticker}: {e}")
+        return {
+            'last_price': None,
+            'rsi_14': None,
+            'macd_h': None,
+            'bb_upper': None,
+            'bb_lower': None
+        }
+

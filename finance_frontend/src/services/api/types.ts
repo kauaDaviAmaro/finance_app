@@ -83,6 +83,27 @@ export interface TickerRequest {
   period?: string
 }
 
+export interface MostSearchedTicker {
+  ticker: string
+  search_count: number
+}
+
+export interface TickerComparisonRequest {
+  ticker1: string
+  ticker2: string
+  period?: string
+}
+
+export interface TickerComparison {
+  ticker1: string
+  ticker2: string
+  period: string
+  ticker1_data: TechnicalAnalysis
+  ticker2_data: TechnicalAnalysis
+  ticker1_fundamentals: Fundamentals
+  ticker2_fundamentals: Fundamentals
+}
+
 // Portfolio Types
 export interface Portfolio {
   id: number
