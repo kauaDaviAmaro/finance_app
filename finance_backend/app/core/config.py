@@ -67,4 +67,45 @@ class Settings(BaseSettings):
             return self.database_url
         raise ValueError("Either database_url or all individual database parameters (db_user, db_password, db_host, db_port, db_name) must be provided")
 
-settings = Settings()
+# Initialize settings with better error handling
+try:
+    settings = Settings()
+except Exception as e:
+    import sys
+    import os
+    from pathlib import Path
+    
+    # Check if .env file exists
+    env_file = Path(__file__).parent.parent.parent / ".env"
+    env_exists = env_file.exists()
+    
+    # Check which variables are missing
+    missing_vars = []
+    if not os.getenv("SECRET_KEY"):
+        missing_vars.append("SECRET_KEY")
+    if not os.getenv("CELERY_BROKER_URL"):
+        missing_vars.append("CELERY_BROKER_URL")
+    if not os.getenv("CELERY_RESULT_BACKEND"):
+        missing_vars.append("CELERY_RESULT_BACKEND")
+    
+    error_msg = f"""
+    ⚠️  ERROR: Failed to load application settings!
+    
+    {'❌ .env file not found!' if not env_exists else '✅ .env file found'}
+    {'   Expected location: ' + str(env_file) if not env_exists else ''}
+    
+    Missing required environment variables:
+    {chr(10).join('      - ' + var for var in missing_vars) if missing_vars else '      (check error details below)'}
+    
+    Required variables:
+      - SECRET_KEY (for JWT tokens)
+      - CELERY_BROKER_URL (e.g., redis://redis:6379/0 or redis://localhost:6379/0)
+      - CELERY_RESULT_BACKEND (e.g., redis://redis:6379/0 or redis://localhost:6379/0)
+    
+    Original error: {str(e)}
+    
+    Please check your .env file or environment variables.
+    See env.example for reference.
+    """
+    print(error_msg, file=sys.stderr)
+    raise

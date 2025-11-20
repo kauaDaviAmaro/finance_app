@@ -167,3 +167,4 @@ def clear_cache_pattern(pattern: str):
         print(f"⚠️  Erro ao limpar cache ({pattern}): {e}")
 
 
+

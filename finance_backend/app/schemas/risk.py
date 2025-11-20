@@ -130,3 +130,4 @@ class PortfolioRiskAnalysis(BaseModel):
     position_analyses: List[PositionRiskAnalysis] = Field(default_factory=list, description="Análises por posição")
 
 
+

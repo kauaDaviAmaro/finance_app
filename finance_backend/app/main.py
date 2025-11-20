@@ -56,11 +56,18 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # Configuração de CORS - DEVE vir ANTES dos routers
+# Nota: allow_credentials=True não pode ser usado com allow_origins=["*"]
+# Por isso, especificamos origens específicas para desenvolvimento
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especificar origens específicas
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],  # Em produção, especificar origens específicas do domínio
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
@@ -163,17 +170,36 @@ app.include_router(risk_router.router)
 app.include_router(financial_planning_router.router)
 app.include_router(admin_router.router, prefix="/admin", tags=["admin"])
 
+@app.on_event("startup")
+async def startup_event():
+    """Log quando a aplicação inicia"""
+    logger.info("=" * 50)
+    logger.info("FastAPI Application Starting...")
+    logger.info(f"API will be available at http://0.0.0.0:8000")
+    logger.info("=" * 50)
+    # Test database connection on startup
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info("Database connection successful")
+    except Exception as e:
+        logger.warning(f"Database connection failed on startup: {e}")
+        logger.info("Application will continue but database operations may fail")
+
 @app.get("/health")
 def health_check():
-    # Verifica se o banco de dados está disponível
+    """Health check endpoint that doesn't fail even if database is down"""
     try:
+        # Try database connection
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
         db_status = f"disconnected: {str(e)}"
+        logger.warning(f"Health check: Database connection failed: {e}")
     
     return {
         "status": "healthy",
-        "database": db_status
+        "database": db_status,
+        "api": "running"
     }
